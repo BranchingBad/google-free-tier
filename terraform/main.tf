@@ -1,0 +1,180 @@
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "4.51.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.0.0"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.7.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+  zone    = var.zone
+}
+
+variable "project_id" {
+  description = "The ID of the GCP project."
+  type        = string
+}
+
+variable "region" {
+  description = "The region to deploy the resources in."
+  type        = string
+  default     = "us-east1"
+}
+
+variable "zone" {
+  description = "The zone to deploy the resources in."
+  type        = string
+  default     = "us-east1-b"
+}
+
+variable "machine_type" {
+  description = "The machine type for the VM."
+  type        = string
+  default     = "e2-micro"
+}
+
+variable "image_family" {
+  description = "The image family for the VM."
+  type        = string
+  default     = "debian-12"
+}
+
+variable "image_project" {
+  description = "The image project for the VM."
+  type        = string
+  default     = "debian-cloud"
+}
+
+variable "boot_disk_size" {
+  description = "The size of the boot disk in GB."
+  type        = number
+  default     = 30
+}
+
+variable "boot_disk_type" {
+  description = "The type of the boot disk."
+  type        = string
+  default     = "pd-standard"
+}
+
+variable "email_address" {
+  description = "The email address for alert notifications."
+  type        = string
+}
+
+variable "domain_name" {
+  description = "The domain name to monitor."
+  type        = string
+}
+
+# Creates a Google Compute Engine instance.
+resource "google_compute_instance" "default" {
+  name         = "free-tier-vm"
+  machine_type = var.machine_type
+  zone         = var.zone
+
+  boot_disk {
+    initialize_params {
+      image = "${var.image_family}/${var.image_project}"
+      size  = var.boot_disk_size
+      type  = var.boot_disk_type
+    }
+  }
+
+  network_interface {
+    network = "default"
+  }
+
+  tags = ["http-server", "https-server"]
+
+  metadata_startup_script = data.template_file.startup_script.rendered
+}
+
+data "template_file" "startup_script" {
+  template = file("startup-script.sh.tpl")
+
+  vars = {
+    domain_name     = var.domain_name
+    duckdns_token   = var.duckdns_token
+    email_address   = var.email_address
+    gcs_bucket_name = var.gcs_bucket_name
+    backup_dir      = var.backup_dir
+  }
+}
+
+# Creates a firewall rule to allow HTTP and HTTPS traffic.
+resource "google_compute_firewall" "default" {
+  name    = "allow-http-https"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  target_tags = ["http-server", "https-server"]
+}
+
+# Creates a notification channel to send alerts to your email.
+resource "google_monitoring_notification_channel" "email" {
+  display_name = "Admin On-Call"
+  type         = "email"
+  labels = {
+    email_address = var.email_address
+  }
+}
+
+# Creates an uptime check to monitor your website's availability.
+resource "google_monitoring_uptime_check_config" "http" {
+  display_name = "Uptime check for ${var.domain_name}"
+  http_check {
+    path = "/"
+    port = "443"
+    use_ssl = true
+  }
+  monitored_resource {
+    type = "uptime_url"
+    labels = {
+      host = var.domain_name
+    }
+  }
+}
+
+# Creates an alerting policy to notify you if your site goes down.
+resource "google_monitoring_alert_policy" "default" {
+  display_name = "[${var.domain_name}] Site Down"
+  combiner     = "OR"
+  notification_channels = [
+    google_monitoring_notification_channel.email.name,
+  ]
+  conditions {
+    display_name = "Uptime check failed on ${var.domain_name}"
+    condition_threshold {
+      filter     = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.labels.check_id=\"${google_monitoring_uptime_check_config.http.uptime_check_id}\""
+      duration   = "300s"
+      comparison = "COMPARISON_GT"
+      trigger {
+        count = 1
+      }
+      aggregator {
+        alignment_period   = "60s"
+        cross_series_reducer = "REDUCE_COUNT_FALSE"
+        per_series_aligner = "ALIGN_NEXT_OLDER"
+      }
+    }
+  }
+  documentation {
+    content = "The uptime check for https://${var.domain_name} failed. The server may be down or misconfigured."
+  }
+}

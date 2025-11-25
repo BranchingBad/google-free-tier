@@ -1,0 +1,8 @@
+gcloud compute instances create free-tier-vm \
+    --machine-type=e2-micro \
+    --zone=us-east1-b \
+    --image-family=debian-12 \
+    --image-project=debian-cloud \
+    --boot-disk-size=30GB \
+    --boot-disk-type=pd-standard \
+    --boot-disk-auto-delete
