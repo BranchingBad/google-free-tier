@@ -44,7 +44,7 @@ main() {
 
     log_info "Creating backup script at ${BACKUP_SCRIPT_PATH}..."
     
-    # Generate the backup script with improved logging
+    # Generate the backup script with improved logging and error handling
     cat <<EOF > "${BACKUP_SCRIPT_PATH}"
 #!/bin/bash
 #
@@ -71,7 +71,19 @@ tar -czf "\${TEMP_FILE}" -C "\$(dirname "\${BACKUP_DIR}")" "\$(basename "\${BACK
 
 # --- 2. Upload to GCS ---
 log "Uploading \${BACKUP_FILENAME} to gs://\${BUCKET_NAME}..."
-gsutil cp "\${TEMP_FILE}" "gs://\${BUCKET_NAME}/"
+
+# We attempt the upload and capture failure if it happens
+if ! gsutil cp "\${TEMP_FILE}" "gs://\${BUCKET_NAME}/"; then
+    log "ERROR: Backup upload failed!"
+    
+    # --- ALERTING SECTION ---
+    # You can add a command here to notify you of the failure.
+    # Example (Generic Webhook):
+    # curl -X POST -H "Content-Type: application/json" -d '{"text": "Backup Failed for \${BUCKET_NAME}"}' https://your-webhook.url
+    
+    # Exit with error so cron logs it as a failure
+    exit 1
+fi
 
 # --- 3. Clean up local temp file ---
 rm "\${TEMP_FILE}"
