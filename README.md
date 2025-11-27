@@ -50,6 +50,14 @@ bash ./1-gcp-setup/3-setup-monitoring.sh
 ```
 ⚠️ **Important:** You will be sent an email to verify the notification channel. You must click the link in this email to activate the alerts.
 
+### 4. Create Secrets in Secret Manager 🤫 (Optional)
+
+This script will interactively prompt you to create secrets in Google Cloud Secret Manager. These secrets are used by the Terraform and Cloud Build configurations.
+
+```bash
+# From your local machine
+bash ./1-gcp-setup/4-create-secrets.sh
+```
 
 ## Phase 2: ⚙️ Host VM Setup (Manual)
 
@@ -102,17 +110,20 @@ sudo bash ./2-host-setup/5-adjust-firewall.sh
 ```
 
 ### 6. Setup Automated Backups 📦 (Optional)
-This script sets up a daily cron job to back up a directory of your choice to a Google Cloud Storage bucket. It will prompt you for the directory path and the GCS bucket name.
+This script sets up a daily cron job to back up a directory of your choice to a Google Cloud Storage bucket. It can be run interactively or by providing the bucket name and directory as arguments.
 
 ```bash
-# On the VM
+# On the VM (interactive)
 sudo bash ./2-host-setup/6-setup-backups.sh
+
+# On the VM (with arguments)
+sudo bash ./2-host-setup/6-setup-backups.sh "your-backup-bucket-name" "/var/www/html"
 ```
 ⚠️ **Important:** Before running, you must create the GCS bucket and ensure your VM has permission to write to it. This is typically configured by default.
 
 ### 🚀 Advanced Usage: Automation
 
-The `setup_duckdns.sh` and `setup_ssl.sh` scripts can accept arguments to bypass the interactive prompts:
+The `setup_duckdns.sh`, `setup_ssl.sh`, and `setup_backups.sh` scripts can accept arguments to bypass the interactive prompts:
 
 ```bash
 # Example for DuckDNS
@@ -120,6 +131,9 @@ bash ./2-host-setup/3-setup-duckdns.sh "your-domain" "your-token"
 
 # Example for SSL
 sudo bash ./2-host-setup/4-setup-ssl.sh "your-domain.duckdns.org" "your-email@example.com"
+
+# Example for Backups
+sudo bash ./2-host-setup/6-setup-backups.sh "your-backup-bucket-name" "/var/www/html"
 ```
 
 ## Phase 3: 🚀 Deploying to GKE (Advanced)
@@ -164,7 +178,8 @@ The `terraform/` directory contains a Terraform project to provision the entire 
     ```bash
     gsutil mb gs://your-terraform-state-bucket-name
     ```
-2.  **Configuration File:** Create a `terraform.tfvars` file in the `terraform/` directory. This file will contain your project-specific variables.
+2.  **Backend Configuration:** In `terraform/backend.tf`, you will see the backend configuration. You will need to provide the bucket name when you initialize Terraform.
+3.  **Configuration File:** Create a `terraform.tfvars` file in the `terraform/` directory. This file will contain your project-specific variables.
     ```hcl
     project_id      = "your-gcp-project-id"
     region          = "us-east1"
@@ -178,19 +193,10 @@ The `terraform/` directory contains a Terraform project to provision the entire 
     gke_cluster_name = "my-gke-cluster"
     image_tag       = "latest"
     ```
-3.  **Backend Configuration:** In `terraform/backend.tf`, uncomment the backend configuration and replace the placeholder with your bucket name.
-    ```hcl
-    terraform {
-      backend "gcs" {
-        bucket = "your-terraform-state-bucket-name"
-        prefix = "terraform/state"
-      }
-    }
-    ```
 
 ### Deployment
 
-1.  **Initialize Terraform:** Navigate to the `terraform/` directory and run `terraform init`.
+1.  **Initialize Terraform:** Navigate to the `terraform/` directory and run `terraform init`. You will be prompted to provide the name of the GCS bucket for the backend.
     ```bash
     cd terraform
     terraform init
