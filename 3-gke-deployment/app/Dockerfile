@@ -12,7 +12,11 @@ COPY package*.json ./
 RUN npm ci --only=production
 
 # Bundle app source
-COPY . .
+# Change ownership of the files to the 'node' user
+COPY --chown=node:node . .
+
+# Switch to the non-root 'node' user for security
+USER node
 
 # Your app binds to port 8080, so expose it
 EXPOSE 8080
