@@ -116,7 +116,8 @@ main() {
     cd "$(dirname "$0")/../terraform"
 
     log_info "Initializing Terraform..."
-    terraform init
+    # CHANGED: Added -backend-config to define the state bucket using the variable fetched above
+    terraform init -backend-config="bucket=${tf_state_bucket}"
 
     log_info "Deploying resources with Terraform..."
     log_warn "This will take about 5-10 minutes."

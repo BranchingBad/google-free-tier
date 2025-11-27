@@ -14,11 +14,14 @@ steps:
     - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
 
 # 3. Initialize Terraform
+# CHANGED: Switched to 'sh' to allow environment variable injection for backend config
 - name: 'hashicorp/terraform:1.0.0'
-  entrypoint: 'terraform'
+  entrypoint: 'sh'
   dir: 'terraform'
+  secretEnv: ['TF_VAR_tf_state_bucket']
   args:
-    - 'init'
+    - '-c'
+    - 'terraform init -backend-config="bucket=$$TF_VAR_tf_state_bucket"'
 
 # 4. Apply Terraform configuration
 # We switch entrypoint to 'sh' to allow environment variable injection from Secret Manager
