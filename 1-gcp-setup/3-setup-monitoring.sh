@@ -1,23 +1,29 @@
 #!/bin/bash
 #
 # This script guides you through setting up monitoring for your VM.
-# It will create:
-#   1. A notification channel to send alerts to your email.
-#   2. An uptime check to monitor your website's availability.
-#   3. An alerting policy to notify you if your site goes down.
-#
-# Run this script from your local machine, not the VM.
 
 # --- Strict Mode & Helpers ---
 set -euo pipefail
 
-_log_prefix() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') $1"
+_log() {
+    local level="$1"
+    local color="$2"
+    local message="$3"
+    # Unified ISO 8601 Timestamp
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    if [[ "$level" == "ERROR" ]]; then
+        echo -e "${timestamp} [${level}] ${color}${message}\033[0m" >&2
+    else
+        echo -e "${timestamp} [${level}] ${color}${message}\033[0m"
+    fi
 }
-log_info() { echo -e "$(_log_prefix "INFO") $1"; }
-log_success() { echo -e "$(_log_prefix "✅") \033[0;32m$1\033[0m"; }
-log_warn() { echo -e "$(_log_prefix "WARN") \033[0;33m$1\033[0m"; }
-log_error() { echo -e "$(_log_prefix "❌") \033[0;31m$1\033[0m" >&2; }
+
+log_info() { _log "INFO" "" "$1"; }
+log_success() { _log "✅" "\033[0;32m" "$1"; }
+log_warn() { _log "WARN" "\033[0;33m" "$1"; }
+log_error() { _log "ERROR" "\033[0;31m" "$1"; }
 
 # --- Pre-flight Checks ---
 if ! command -v gcloud &> /dev/null; then
@@ -30,7 +36,7 @@ fi
 main() {
     log_info "--- GCP Monitoring Setup ---" 
     
-    # --- 1. Get User Details ---
+    # ... (Rest of the script remains identical, but now uses the new logging format) ...
     local project_id
     project_id=$(gcloud config get-value project)
     log_info "Operating in project: ${project_id}"
@@ -44,10 +50,7 @@ main() {
     local domain
     read -p "Enter the full domain to monitor (e.g., 'my.duckdns.org'): " domain
     
-    # --- 2. Create Notification Channel ---
     log_info "Creating email notification channel for ${email}..."
-    
-    # `gcloud ... --format='value(name)'` prints only the 'name' field of the result.
     local channel_name
     channel_name=$(gcloud beta monitoring channels create \
         --display-name="${display_name}" \
@@ -66,7 +69,6 @@ main() {
     log_warn "You must click the link in the email before you can receive alerts."
     read -p "Press [Enter] after you have clicked the verification link..."
 
-    # --- 3. Create Uptime Check ---
     log_info "Creating HTTP uptime check for https://${domain}..."
     local uptime_check_id
     uptime_check_id=$(gcloud monitoring uptime-checks create http "https://${domain}" \
@@ -79,10 +81,7 @@ main() {
     fi
     log_success "Uptime check created: ${uptime_check_id}"
 
-    # --- 4. Create Alerting Policy ---
     log_info "Creating alerting policy..."
-    
-    # The condition filter looks for the uptime check metric associated with our check ID.
     local filter
     filter="metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.labels.check_id=\"${uptime_check_id##*/}\""
 

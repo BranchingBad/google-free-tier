@@ -4,51 +4,69 @@
 # This script is intended to be sourced, not executed directly.
 
 # --- Strict Mode ---
-#
-# -e: exit immediately on non-zero exit status
-# -u: treat unset variables as an error
-# -o pipefail: if any command in a pipeline fails, the pipe's exit status is that command's
 set -euo pipefail
 
 # --- Log Formatting ---
 #
-# Provides color-coded and prefixed log messages.
-#
 # Usage:
-#   log_info "This is an informational message."
-#   log_success "Something succeeded."
-#   log_warn "This is a warning."
-#   log_error "This is an error."
+#   log_info "Message"
+#   log_success "Message"
+#   log_warn "Message"
+#   log_error "Message"
+#   log_debug "Message" (Requires DEBUG=true)
 #
-# ---------------------------
-_log_prefix() {
-    echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") [$1] "
+# Optional: Set LOG_FILE to a path to append logs to a file.
+
+_log() {
+    local level="$1"
+    local color="$2"
+    local message="$3"
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local prefix="${timestamp} [${level}]"
+
+    # Console Output
+    # Errors go to stderr, everything else to stdout
+    if [[ "${level}" == "ERROR" ]]; then
+        echo -e "${prefix} ${color}${message}\033[0m" >&2
+    else
+        echo -e "${prefix} ${color}${message}\033[0m"
+    fi
+
+    # File Output
+    if [[ -n "${LOG_FILE:-}" ]]; then
+        # Strip ANSI color codes for plain text logging
+        echo "${prefix} ${message}" >> "${LOG_FILE}"
+    fi
 }
 
 log_info() {
-    echo -e "$(_log_prefix "INFO") $1"
+    _log "INFO" "" "$1"
 }
 
 log_success() {
-    echo -e "$(_log_prefix "✅") \033[0;32m$1\033[0m"
+    # Green
+    _log "✅" "\033[0;32m" "$1"
 }
 
 log_warn() {
-    echo -e "$(_log_prefix "WARN") \033[0;33m$1\033[0m"
+    # Yellow
+    _log "WARN" "\033[0;33m" "$1"
 }
 
 log_error() {
-    echo -e "$(_log_prefix "❌") \033[0;31m$1\033[0m" >&2
+    # Red
+    _log "ERROR" "\033[0;31m" "$1"
+}
+
+log_debug() {
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        # Purple
+        _log "DEBUG" "\033[0;35m" "$1"
+    fi
 }
 
 # --- Root Check ---
-#
-# Ensures the script is being run as root. If not, it logs an error
-# and exits.
-#
-# Usage:
-#   ensure_root
-# ---------------------------
 ensure_root() {
     if [[ "${EUID}" -ne 0 ]]; then
         log_error "This script must be run as root."
