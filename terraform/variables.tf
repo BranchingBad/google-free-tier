@@ -35,7 +35,6 @@ variable "project_id" {
   type        = string
 }
 
-# --- UPDATE: Added Billing Account ID ---
 variable "billing_account_id" {
   description = "The alphanumeric ID of the billing account (e.g., XXXXXX-XXXXXX-XXXXXX)."
   type        = string
@@ -72,6 +71,13 @@ variable "enable_gke" {
 
 variable "region" {
   description = "The region to deploy the resources in."
+  type        = string
+  default     = "us-central1"
+}
+
+# NEW: Decouple registry region from deployment region
+variable "artifact_registry_region" {
+  description = "The region where the Artifact Registry is located (defaults to setup script value)."
   type        = string
   default     = "us-central1"
 }

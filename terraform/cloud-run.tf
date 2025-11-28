@@ -34,7 +34,8 @@ resource "google_cloud_run_v2_service" "default" {
     service_account = google_service_account.cloud_run_sa[0].email
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-cloud-run:${var.image_tag}"
+      # UPDATE: Use artifact_registry_region instead of deployment region
+      image = "${var.artifact_registry_region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-cloud-run:${var.image_tag}"
       
       # Inject the version/tag as an environment variable
       env {
@@ -42,7 +43,7 @@ resource "google_cloud_run_v2_service" "default" {
         value = var.image_tag
       }
 
-    # IMPROVEMENT: Add Health Probes
+      # IMPROVEMENT: Add Health Probes
       startup_probe {
         initial_delay_seconds = 0
         timeout_seconds       = 1

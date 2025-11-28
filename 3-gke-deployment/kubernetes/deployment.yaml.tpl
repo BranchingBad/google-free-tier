@@ -3,7 +3,8 @@ kind: Deployment
 metadata:
   name: hello-gke-deployment
 spec:
-  replicas: 2 # Run two instances of our application
+  # UPDATE: Reduced to 1 to fit within the GKE Autopilot Free Tier (750 hours/month)
+  replicas: 1 
   selector:
     matchLabels:
       app: hello-gke
@@ -17,7 +18,7 @@ spec:
         image: ${image}
         ports:
         - containerPort: 8080
-        
+      
         # --- GKE Autopilot Resource Requirements ---
         # Explicit requests are required for Autopilot to calculate billing 
         # and allocate the correct class of compute resources.
