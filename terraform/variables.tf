@@ -49,6 +49,12 @@ variable "enable_cloud_run" {
   default     = true
 }
 
+variable "enable_cloud_run_domain_mapping" {
+  description = "Map the custom domain to Cloud Run. WARNING: Causes conflict if VM is also enabled with the same domain."
+  type        = bool
+  default     = false
+}
+
 variable "enable_gke" {
   description = "Enable the GKE cluster (WARNING: Incurs compute costs)."
   type        = bool

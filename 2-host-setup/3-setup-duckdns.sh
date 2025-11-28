@@ -29,21 +29,22 @@ prompt_for_credentials() {
 main() {
     log_info "--- Phase 3: Setting up DuckDNS ---"
 
-    DOMAIN="${1:-}"
-    TOKEN="${2:-}"
+    # Support both Env Vars and CLI Args
+    DOMAIN="${1:-${DOMAIN}}"
+    TOKEN="${2:-${DUCKDNS_TOKEN:-${TOKEN}}}" # Handle DUCKDNS_TOKEN or TOKEN
 
     if [[ -z "${DOMAIN}" || -z "${TOKEN}" ]]; then
         prompt_for_credentials
     else
-        log_info "Using domain and token from script arguments."
+        log_info "Using credentials from environment/arguments."
     fi
 
+    # ... (Rest of the script remains unchanged)
     log_info "Creating installation directory at ${INSTALL_DIR}..."
     mkdir -p "${INSTALL_DIR}"
 
     log_info "Creating updater script: ${SCRIPT_FILE}"
     
-    # Use consistent ISO 8601 timestamps in the generated script
     cat <<EOF > "${SCRIPT_FILE}"
 #!/bin/bash
 # Auto-generated DuckDNS update script

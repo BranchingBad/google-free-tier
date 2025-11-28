@@ -1,15 +1,16 @@
 # Enable the necessary APIs for Cloud Run and Artifact Registry.
 resource "google_project_service" "cloud_run_apis" {
-  for_each = toset([
+  for_each = var.enable_cloud_run ? toset([
     "run.googleapis.com",
     "artifactregistry.googleapis.com",
-    "domains.googleapis.com" # Added for domain mapping support
-  ])
+    "domains.googleapis.com"
+  ]) : []
   service = each.key
 }
 
 # Create a Cloud Run service.
 resource "google_cloud_run_v2_service" "default" {
+  count    = var.enable_cloud_run ? 1 : 0
   name     = "hello-cloud-run"
   location = var.region
 
@@ -31,14 +32,16 @@ resource "google_cloud_run_v2_service" "default" {
 
 # Allow unauthenticated access to the Cloud Run service.
 resource "google_cloud_run_service_iam_binding" "default" {
-  location = google_cloud_run_v2_service.default.location
-  name     = google_cloud_run_v2_service.default.name
+  count    = var.enable_cloud_run ? 1 : 0
+  location = google_cloud_run_v2_service.default[0].location
+  name     = google_cloud_run_v2_service.default[0].name
   role     = "roles/run.invoker"
   members  = ["allUsers"]
 }
 
-# Map the custom domain to the Cloud Run service
+# Map the custom domain to the Cloud Run service (Optional)
 resource "google_cloud_run_domain_mapping" "default" {
+  count    = (var.enable_cloud_run && var.enable_cloud_run_domain_mapping) ? 1 : 0
   location = var.region
   name     = var.domain_name
 
@@ -47,7 +50,7 @@ resource "google_cloud_run_domain_mapping" "default" {
   }
 
   spec {
-    route_name = google_cloud_run_v2_service.default.name
+    route_name = google_cloud_run_v2_service.default[0].name
   }
 
   depends_on = [

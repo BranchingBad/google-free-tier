@@ -1,10 +1,6 @@
 #!/bin/bash
 #
 # Phase 4: Set up SSL with Let's Encrypt and Certbot.
-#
-# This script automates the installation of an SSL certificate for a given
-# domain. It requires Nginx to be installed and the domain's DNS A record
-# to be pointing to this server's IP address.
 
 # Resolve the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -66,18 +62,18 @@ main() {
     log_info "--- Phase 4: Setting up SSL with Let's Encrypt ---"
     ensure_root
 
-    # Allow passing credentials as arguments for automation
-    # ./setup_ssl.sh [domain] [email]
-    DOMAIN="${1:-}"
-    EMAIL="${2:-}"
+    # Support both Env Vars and CLI Args
+    DOMAIN="${1:-${DOMAIN}}"
+    EMAIL="${2:-${EMAIL}}"
 
     if [[ -z "${DOMAIN}" || -z "${EMAIL}" ]]; then
         prompt_for_details
     else
-        log_info "Using domain and email from script arguments."
+        log_info "Using domain and email from environment/arguments."
     fi
     
-    # --- Dependencies ---
+    # ... (Rest of logic checks certbot, runs check_dns, runs certbot --nginx)
+    # Ensure dependencies are installed
     if ! command -v certbot &> /dev/null; then
         log_info "Certbot is not installed. Installing now..."
         apt-get update -qq
@@ -85,14 +81,9 @@ main() {
         log_success "Certbot installed."
     fi
 
-    # --- Pre-flight checks ---
     check_dns
 
     log_info "Requesting SSL certificate for ${DOMAIN}..."
-    log_info "This may take a few seconds..."
-
-    # Use certbot to get the certificate.
-    # The flags make it non-interactive.
     certbot --nginx \
         -d "${DOMAIN}" \
         --non-interactive \
@@ -101,19 +92,12 @@ main() {
         --redirect \
         --expand
 
-    # Check the exit code of the last command
     if [[ $? -eq 0 ]]; then
         log_success "SSL Certificate installed and configured successfully!"
         log_info "Your site is now available at: https://${DOMAIN}"
-        
-        log_info "Testing certificate auto-renewal..."
         certbot renew --dry-run
     else
         log_error "Certbot failed to obtain an SSL certificate."
-        log_info "Common issues:"
-        log_info "  1. DNS propagation: Did you wait long enough after setting the A record?"
-        log_info "  2. GCP Firewall: Ensure 'http-server' and 'https-server' tags are applied to the VM."
-        log_info "  3. Nginx is not running or configured correctly."
     fi
     
     log_info "----------------------------------------------------"
