@@ -29,7 +29,7 @@ main() {
         exit 1
     fi
 
-    # ... (Rest of dependencies check and script generation)
+    # Ensure Cloud SDK is installed for gsutil
     if ! command -v gsutil &> /dev/null; then
         log_warn "gsutil command not found. Installing Google Cloud SDK..."
         apt-get update -qq
@@ -42,15 +42,17 @@ main() {
 
     log_info "Creating backup script at ${BACKUP_SCRIPT_PATH}..."
     
+    # --- UPDATE START ---
+    # Simplified script: Only handles creation and upload.
+    # Cleanup is now handled by GCS Lifecycle policies managed by Terraform.
     cat <<EOF > "${BACKUP_SCRIPT_PATH}"
 #!/bin/bash
-# ... (Backup script content same as before) ...
 set -euo pipefail
+
 BUCKET_NAME="${BUCKET_NAME}"
 BACKUP_DIR="${BACKUP_DIR}"
 BACKUP_FILENAME="backup-\$(date -u +"%Y-%m-%d-%H%M%S").tar.gz"
 TEMP_FILE="/tmp/\${BACKUP_FILENAME}"
-DAYS_TO_KEEP=7
 
 log() { echo "[\$(date -u +"%Y-%m-%dT%H:%M:%SZ")] \$1"; }
 
@@ -64,25 +66,18 @@ if ! gsutil cp "\${TEMP_FILE}" "gs://\${BUCKET_NAME}/"; then
 fi
 
 rm "\${TEMP_FILE}"
-
-log "Cleaning up backups older than \${DAYS_TO_KEEP} days..."
-gsutil ls -l "gs://\${BUCKET_NAME}" | while read -r _ timestamp _; do
-    [[ \$REPLY != *"backup-"* ]] && continue
-    file_date=\$(date -d "\${timestamp}" +%s)
-    cutoff_date=\$(date -d "- \${DAYS_TO_KEEP} days" +%s)
-    if (( file_date < cutoff_date )); then
-        old_file_url=\$(echo "\$REPLY" | awk '{print \$3}')
-        log "Deleting old backup: \${old_file_url}"
-        gsutil rm "\${old_file_url}"
-    fi
-done
 log "Backup complete."
 EOF
+    # --- UPDATE END ---
 
     chmod 700 "${BACKUP_SCRIPT_PATH}"
     local cron_log="/var/log/backup.log"
     local cron_cmd="0 3 * * * ${BACKUP_SCRIPT_PATH} >> ${cron_log} 2>&1"
-    (crontab -l 2>/dev/null | grep -vF "${BACKUP_SCRIPT_PATH}"; echo "${cron_cmd}") | crontab -
+
+    # --- UPDATE START ---
+    # Added '|| true' to crontab -l to prevent script failure if no crontab exists
+    (crontab -l 2>/dev/null || true | grep -vF "${BACKUP_SCRIPT_PATH}"; echo "${cron_cmd}") | crontab -
+    # --- UPDATE END ---
 
     log_success "Setup complete!"
 }

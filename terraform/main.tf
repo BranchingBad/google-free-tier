@@ -45,14 +45,6 @@ resource "google_project_iam_member" "metric_writer" {
   member  = "serviceAccount:${google_service_account.vm_sa[0].email}"
 }
 
-# Allow full control of objects for backups
-resource "google_project_iam_member" "storage_admin" {
-  count   = var.enable_vm ? 1 : 0
-  project = var.project_id
-  role    = "roles/storage.objectAdmin"
-  member  = "serviceAccount:${google_service_account.vm_sa[0].email}"
-}
-
 # Allow accessing secrets
 resource "google_project_iam_member" "secret_accessor" {
   count   = var.enable_vm ? 1 : 0
@@ -118,7 +110,7 @@ resource "google_compute_firewall" "allow_http_https" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-# IMPROVEMENT: Restrict SSH to IAP only
+# Restrict SSH to IAP only
 resource "google_compute_firewall" "allow_ssh_iap" {
   count   = var.enable_vm ? 1 : 0
   name    = "allow-ssh-from-iap"
@@ -129,7 +121,7 @@ resource "google_compute_firewall" "allow_ssh_iap" {
     ports    = ["22"]
   }
 
-  target_tags = ["http-server", "https-server"] # Or add a specific "ssh-enabled" tag
+  target_tags = ["http-server", "https-server"] 
   
   # Allow connections only from Google IAP range
   source_ranges = ["35.235.240.0/20"]
@@ -146,7 +138,29 @@ resource "google_storage_bucket" "backup_bucket" {
   versioning {
     enabled = true
   }
+
+  # --- UPDATE START ---
+  # Automatically delete backups older than 7 days
+  lifecycle_rule {
+    condition {
+      age = 7
+    }
+    action {
+      type = "Delete"
+    }
+  }
+  # --- UPDATE END ---
 }
+
+# --- UPDATE START ---
+# Allow full control of objects ONLY for this specific bucket
+resource "google_storage_bucket_iam_member" "vm_bucket_admin" {
+  count  = var.enable_vm ? 1 : 0
+  bucket = google_storage_bucket.backup_bucket[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.vm_sa[0].email}"
+}
+# --- UPDATE END ---
 
 # Upload the local setup scripts to the GCS bucket
 resource "google_storage_bucket_object" "setup_scripts" {
