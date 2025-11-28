@@ -55,9 +55,9 @@ variable "enable_vm" {
 }
 
 variable "enable_cloud_run" {
-  description = "Enable the Cloud Run service (Modern Free Tier)."
+  description = "Enable the Cloud Run service. DISABLED to prevent costs."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_cloud_run_domain_mapping" {
@@ -124,9 +124,9 @@ variable "boot_disk_type" {
 }
 
 variable "budget_amount" {
-  description = "The amount to set the budget alert at (e.g. 5 USD)."
+  description = "The amount to set the budget alert at (e.g. 1 USD)."
   type        = string
-  default     = "5"
+  default     = "1"
 }
 
 variable "gke_cluster_name" {
