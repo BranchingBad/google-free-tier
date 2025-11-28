@@ -4,7 +4,7 @@ metadata:
   name: hello-gke-deployment
 spec:
   # WARNING: While the GKE Autopilot *Management Fee* is waived for one cluster, 
-  # the compute resources (vCPU/RAM) defined below ARE BILLED. 
+  # the compute resources (vCPU/RAM) defined below ARE BILLED.
   # GKE Autopilot is NOT part of the "Always Free" Compute Engine tier.
   replicas: 1 
   selector:
@@ -15,6 +15,14 @@ spec:
       labels:
         app: hello-gke
     spec:
+      # --- Security Hardening ---
+      # Enforce non-root execution at the pod level
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # 'node' user UID
+        runAsGroup: 1000
+        fsGroup: 1000
+
       containers:
       - name: hello-gke-container
         image: ${image}

@@ -21,7 +21,7 @@ steps:
       terraform init -backend=false
       terraform validate
 
-# 3. Build the Docker image
+# 3a. Build the Docker image (Cloud Run)
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'build'
@@ -29,11 +29,25 @@ steps:
     - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
     - './3-cloud-run-deployment/app'
 
-# 4. Push the Docker image to Artifact Registry
+# 3b. Build the Docker image (GKE)
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'build'
+    - '-t'
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
+    - './3-gke-deployment/app'
+
+# 4a. Push the Docker image (Cloud Run)
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'push'
     - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
+
+# 4b. Push the Docker image (GKE)
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'push'
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
 
 # 5. Initialize Terraform (Real Init)
 - name: 'hashicorp/terraform:1.8.4'
@@ -64,9 +78,10 @@ steps:
         -var="region=${_REGION}" \
         -var="image_tag=${SHORT_SHA}"
 
-# Store the image name for other builds
+# Store the image names for other builds
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
 
 # Default substitutions
 substitutions:
