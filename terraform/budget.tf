@@ -9,6 +9,14 @@ variable "budget_amount" {
   default     = "10"
 }
 
+# --- UPDATE START ---
+# Ensure the Billing Budgets API is enabled
+resource "google_project_service" "billing_budget_api" {
+  service            = "billingbudgets.googleapis.com"
+  disable_on_destroy = false
+}
+# --- UPDATE END ---
+
 resource "google_billing_budget" "budget" {
   billing_account = var.billing_account_id
   display_name    = "Free Tier Budget Alert"
@@ -33,4 +41,8 @@ resource "google_billing_budget" "budget" {
   threshold_rules {
     threshold_percent = 1.0
   }
+
+  # --- UPDATE START ---
+  depends_on = [google_project_service.billing_budget_api]
+  # --- UPDATE END ---
 }

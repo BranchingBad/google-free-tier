@@ -54,6 +54,9 @@ steps:
     - 'TF_VAR_gcs_bucket_name'
     - 'TF_VAR_tf_state_bucket'
     - 'TF_VAR_backup_dir'
+    # --- UPDATE START ---
+    - 'TF_VAR_billing_account_id'
+    # --- UPDATE END ---
   args:
     - '-c'
     - |
@@ -87,3 +90,7 @@ availableSecrets:
     env: 'TF_VAR_tf_state_bucket'
   - versionName: projects/$PROJECT_ID/secrets/backup_dir/versions/latest
     env: 'TF_VAR_backup_dir'
+  # --- UPDATE START ---
+  - versionName: projects/$PROJECT_ID/secrets/billing_account_id/versions/latest
+    env: 'TF_VAR_billing_account_id'
+  # --- UPDATE END ---

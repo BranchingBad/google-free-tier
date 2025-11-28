@@ -25,6 +25,10 @@ create_secret "gcs_bucket_name" "Enter your GCS bucket name for backups"
 create_secret "tf_state_bucket" "Enter your Terraform state bucket name"
 create_secret "backup_dir" "Enter the directory to back up (e.g., /var/www/html)"
 
+# --- UPDATE START ---
+create_secret "billing_account_id" "Enter your Billing Account ID (e.g., XXXXXX-XXXXXX-XXXXXX)"
+# --- UPDATE END ---
+
 # Grant Cloud Build permission to access these secrets
 PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
 gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
