@@ -117,3 +117,9 @@ variable "boot_disk_type" {
   type        = string
   default     = "pd-standard"
 }
+
+variable "budget_amount" {
+  description = "The amount to set the budget alert at (e.g. 5 USD)."
+  type        = string
+  default     = "5"
+}
