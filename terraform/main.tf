@@ -56,8 +56,6 @@ resource "google_project_iam_member" "secret_accessor" {
   member  = "serviceAccount:${google_service_account.vm_sa.email}"
 }
 
-# --- Compute Engine ---
-
 # Creates a Google Compute Engine instance.
 resource "google_compute_instance" "default" {
   name         = "free-tier-vm"
@@ -80,12 +78,15 @@ resource "google_compute_instance" "default" {
 
   metadata_startup_script = data.template_file.startup_script.rendered
 
-  # Use the custom service account with full cloud-platform access scope,
-  # but restricted by the IAM roles assigned above.
   service_account {
     email  = google_service_account.vm_sa.email
     scopes = ["cloud-platform"]
   }
+
+  # CRITICAL FIX: Wait for scripts to be uploaded to GCS before creating the VM.
+  depends_on = [
+    google_storage_bucket_object.setup_scripts
+  ]
 }
 
 data "template_file" "startup_script" {
@@ -114,6 +115,14 @@ resource "google_storage_bucket" "backup_bucket" {
   versioning {
     enabled = true
   }
+}
+
+# Upload the local setup scripts to the GCS bucket so the VM can download them.
+resource "google_storage_bucket_object" "setup_scripts" {
+  for_each = fileset("${path.module}/../2-host-setup", "*")
+  name     = "setup-scripts/${each.value}"
+  source   = "${path.module}/../2-host-setup/${each.value}"
+  bucket   = google_storage_bucket.backup_bucket.name
 }
 
 # Creates a notification channel to send alerts to your email.
