@@ -1,50 +1,45 @@
-# Enable the necessary APIs for GKE and Artifact Registry.
+# Enable the necessary APIs for GKE.
 resource "google_project_service" "gke_apis" {
-  for_each = toset([
+  for_each = var.enable_gke ? toset([
     "container.googleapis.com",
     "artifactregistry.googleapis.com",
-  ])
+  ]) : []
   service = each.key
 }
 
-# REMOVED: google_artifact_registry_repository
-# This resource is now managed by '1-gcp-setup/5-create-artifact-registry.sh'
-# to prevent circular dependencies in the Cloud Build pipeline.
-
 # Create a GKE Autopilot cluster.
 resource "google_container_cluster" "default" {
-  name     = var.gke_cluster_name
-  location = var.region
+  count            = var.enable_gke ? 1 : 0
+  name             = var.gke_cluster_name
+  location         = var.region
   enable_autopilot = true
-  network    = "default"
-  subnetwork = "default"
+  network          = "default"
+  subnetwork       = "default"
   depends_on = [
     google_project_service.gke_apis,
   ]
 }
 
-# The following section is for the Kubernetes provider and resources.
-# It configures the Kubernetes provider to connect to the GKE cluster created above.
-provider "kubernetes" {
-  host  = "https://container.googleapis.com/v1/projects/${var.project_id}/locations/${var.region}/clusters/${var.gke_cluster_name}"
-  token = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.default.master_auth[0].cluster_ca_certificate)
-}
-
 data "google_client_config" "default" {}
 
-# Configure the kubectl provider
-provider "kubectl" {
-  host                   = google_container_cluster.default.endpoint
-  cluster_ca_certificate = base64decode(google_container_cluster.default.master_auth.0.cluster_ca_certificate)
+# Configure the Kubernetes provider.
+# We use 'try' to handle cases where the GKE cluster is not enabled (count = 0).
+provider "kubernetes" {
+  host                   = try(google_container_cluster.default[0].endpoint, "")
   token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = try(base64decode(google_container_cluster.default[0].master_auth[0].cluster_ca_certificate), "")
+}
+
+# Configure the Kubectl provider.
+provider "kubectl" {
+  host                   = try(google_container_cluster.default[0].endpoint, "")
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = try(base64decode(google_container_cluster.default[0].master_auth[0].cluster_ca_certificate), "")
   load_config_file       = false
 }
 
-# Use Terraform to render the Kubernetes manifest templates
 locals {
-  # The path to the image is dynamically constructed
-  # CHANGED: Using hardcoded 'gke-apps' because the Terraform resource was removed.
+  # Construct image URL
   image_url = "${var.region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-gke:${var.image_tag}"
 
   # Render the deployment manifest
@@ -53,21 +48,22 @@ locals {
   })
 }
 
-# Apply the Kubernetes manifests using the kubectl provider
+# Apply the Kubernetes manifests
 resource "kubectl_manifest" "gke_deployment" {
+  count     = var.enable_gke ? 1 : 0
   yaml_body = local.deployment_yaml
   depends_on = [
     google_container_cluster.default,
   ]
 }
 
-
-# Reserve a static IP address for the Ingress
 resource "google_compute_global_address" "gke_static_ip" {
-  name = "gke-static-ip"
+  count = var.enable_gke ? 1 : 0
+  name  = "gke-static-ip"
 }
 
 resource "kubectl_manifest" "gke_service" {
+  count     = var.enable_gke ? 1 : 0
   yaml_body = file("${path.module}/../3-gke-deployment/kubernetes/service.yaml")
   depends_on = [
     kubectl_manifest.gke_deployment,
@@ -75,7 +71,8 @@ resource "kubectl_manifest" "gke_service" {
 }
 
 resource "kubectl_manifest" "managed_certificate" {
-  yaml_body = templatefile("${path.module}/../3-gke-deployment/kubernetes/managed-certificate.yaml", {
+  count     = var.enable_gke ? 1 : 0
+  yaml_body = templatefile("${path.module}/../3-gke-deployment/kubernetes/managed-certificate.yaml.tpl", {
     domain_name = var.domain_name
   })
   depends_on = [
@@ -84,6 +81,7 @@ resource "kubectl_manifest" "managed_certificate" {
 }
 
 resource "kubectl_manifest" "ingress" {
+  count     = var.enable_gke ? 1 : 0
   yaml_body = file("${path.module}/../3-gke-deployment/kubernetes/ingress.yaml")
   depends_on = [
     kubectl_manifest.gke_service,

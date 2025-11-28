@@ -1,4 +1,3 @@
-# This file will contain the input variables for the Terraform project.
 variable "duckdns_token" {
   description = "The DuckDNS token."
   type        = string
@@ -36,19 +35,37 @@ variable "project_id" {
   type        = string
 }
 
-# --- Updated Defaults for Region Alignment ---
+# --- Feature Flags ---
+
+variable "enable_vm" {
+  description = "Enable the Compute Engine VM (Standard Free Tier)."
+  type        = bool
+  default     = true
+}
+
+variable "enable_cloud_run" {
+  description = "Enable the Cloud Run service (Modern Free Tier)."
+  type        = bool
+  default     = true
+}
+
+variable "enable_gke" {
+  description = "Enable the GKE cluster (WARNING: Incurs compute costs)."
+  type        = bool
+  default     = false
+}
+
+# --- Region & Machine Config ---
 
 variable "region" {
   description = "The region to deploy the resources in."
   type        = string
-  # CHANGED: Default to us-central1 to match Cloud Build and GKE Free Tier eligibility
   default     = "us-central1"
 }
 
 variable "zone" {
   description = "The zone to deploy the resources in."
   type        = string
-  # CHANGED: Default to a zone within us-central1
   default     = "us-central1-a"
 }
 

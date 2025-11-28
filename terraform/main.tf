@@ -24,40 +24,47 @@ provider "google" {
 # --- Service Account & IAM ---
 
 resource "google_service_account" "vm_sa" {
+  count        = var.enable_vm ? 1 : 0
   account_id   = "free-tier-vm-sa"
   display_name = "Free Tier VM Service Account"
 }
 
-# Allow writing logs (required for Cloud Logging agent)
+# Allow writing logs
 resource "google_project_iam_member" "log_writer" {
+  count   = var.enable_vm ? 1 : 0
   project = var.project_id
   role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.vm_sa.email}"
+  member  = "serviceAccount:${google_service_account.vm_sa[0].email}"
 }
 
-# Allow writing metrics (required for Cloud Monitoring agent)
+# Allow writing metrics
 resource "google_project_iam_member" "metric_writer" {
+  count   = var.enable_vm ? 1 : 0
   project = var.project_id
   role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.vm_sa.email}"
+  member  = "serviceAccount:${google_service_account.vm_sa[0].email}"
 }
 
-# Allow full control of objects for backups (Write new, Delete old)
+# Allow full control of objects for backups
 resource "google_project_iam_member" "storage_admin" {
+  count   = var.enable_vm ? 1 : 0
   project = var.project_id
   role    = "roles/storage.objectAdmin"
-  member  = "serviceAccount:${google_service_account.vm_sa.email}"
+  member  = "serviceAccount:${google_service_account.vm_sa[0].email}"
 }
 
 # Allow accessing secrets
 resource "google_project_iam_member" "secret_accessor" {
+  count   = var.enable_vm ? 1 : 0
   project = var.project_id
   role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.vm_sa.email}"
+  member  = "serviceAccount:${google_service_account.vm_sa[0].email}"
 }
 
-# Creates a Google Compute Engine instance.
+# --- Compute Engine ---
+
 resource "google_compute_instance" "default" {
+  count        = var.enable_vm ? 1 : 0
   name         = "free-tier-vm"
   machine_type = var.machine_type
   zone         = var.zone
@@ -72,6 +79,9 @@ resource "google_compute_instance" "default" {
 
   network_interface {
     network = "default"
+    access_config {
+      # Ephemeral public IP
+    }
   }
 
   tags = ["http-server", "https-server"]
@@ -79,11 +89,11 @@ resource "google_compute_instance" "default" {
   metadata_startup_script = data.template_file.startup_script.rendered
 
   service_account {
-    email  = google_service_account.vm_sa.email
+    email  = google_service_account.vm_sa[0].email
     scopes = ["cloud-platform"]
   }
 
-  # CRITICAL FIX: Wait for scripts to be uploaded to GCS before creating the VM.
+  # Wait for scripts to be uploaded to GCS before creating the VM.
   depends_on = [
     google_storage_bucket_object.setup_scripts
   ]
@@ -93,8 +103,8 @@ data "template_file" "startup_script" {
   template = file("startup-script.sh.tpl")
 }
 
-# Creates a firewall rule to allow HTTP and HTTPS traffic.
 resource "google_compute_firewall" "default" {
+  count   = var.enable_vm ? 1 : 0
   name    = "allow-http-https"
   network = "default"
 
@@ -106,7 +116,9 @@ resource "google_compute_firewall" "default" {
   target_tags = ["http-server", "https-server"]
 }
 
+# Bucket is needed for VM backups and storing setup scripts
 resource "google_storage_bucket" "backup_bucket" {
+  count         = var.enable_vm ? 1 : 0
   name          = var.gcs_bucket_name
   location      = var.region
   force_destroy = false
@@ -117,16 +129,18 @@ resource "google_storage_bucket" "backup_bucket" {
   }
 }
 
-# Upload the local setup scripts to the GCS bucket so the VM can download them.
+# Upload the local setup scripts to the GCS bucket
 resource "google_storage_bucket_object" "setup_scripts" {
-  for_each = fileset("${path.module}/../2-host-setup", "*")
+  for_each = var.enable_vm ? fileset("${path.module}/../2-host-setup", "*") : []
   name     = "setup-scripts/${each.value}"
   source   = "${path.module}/../2-host-setup/${each.value}"
-  bucket   = google_storage_bucket.backup_bucket.name
+  bucket   = google_storage_bucket.backup_bucket[0].name
 }
 
-# Creates a notification channel to send alerts to your email.
+# --- Monitoring (VM Specific) ---
+
 resource "google_monitoring_notification_channel" "email" {
+  count        = var.enable_vm ? 1 : 0
   display_name = "Admin On-Call"
   type         = "email"
   labels = {
@@ -134,8 +148,8 @@ resource "google_monitoring_notification_channel" "email" {
   }
 }
 
-# Creates an uptime check to monitor your website's availability.
 resource "google_monitoring_uptime_check_config" "http" {
+  count        = var.enable_vm ? 1 : 0
   display_name = "Uptime check for ${var.domain_name}"
   http_check {
     path = "/"
@@ -150,17 +164,17 @@ resource "google_monitoring_uptime_check_config" "http" {
   }
 }
 
-# Creates an alerting policy to notify you if your site goes down.
 resource "google_monitoring_alert_policy" "default" {
+  count        = var.enable_vm ? 1 : 0
   display_name = "[${var.domain_name}] Site Down"
   combiner     = "OR"
   notification_channels = [
-    google_monitoring_notification_channel.email.name,
+    google_monitoring_notification_channel.email[0].name,
   ]
   conditions {
     display_name = "Uptime check failed on ${var.domain_name}"
     condition_threshold {
-      filter     = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.labels.check_id=\"${google_monitoring_uptime_check_config.http.uptime_check_id}\""
+      filter     = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.labels.check_id=\"${google_monitoring_uptime_check_config.http[0].uptime_check_id}\""
       duration   = "300s"
       comparison = "COMPARISON_GT"
       trigger {
