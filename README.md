@@ -1,18 +1,38 @@
 # ☁️ google-free-tier
 
-Setup and configure a web server on a Google Cloud Free Tier `e2-micro` VM, or deploy containerized applications using Cloud Run and GKE Autopilot.
+**A complete guide to hosting applications on Google Cloud Platform's Free Tier.**
+
+Setup and configure a web server on a Google Cloud Free Tier `e2-micro` VM, or deploy containerized applications using Cloud Run and GKE Autopilot—all within free tier limits!
 
 **New in v2.0:** The containerized applications now feature a persistent **Visitor Counter** backed by **Google Cloud Firestore**, demonstrating stateful serverless deployments!
 
-This project offers multiple paths for deployment:
-- **Manual Setup (Phases 1-2):** Step-by-step shell scripts to configure a VM.
-- **Serverless (Phase 3):** Deploy a Node.js app with Firestore integration to Cloud Run.
-- **Kubernetes (Phase 4):** Deploy a Node.js app with Firestore integration to GKE Autopilot.
-- **Terraform (Phase 5):** Fully automated Infrastructure-as-Code provisioning.
+## 🎯 Deployment Options
+
+Choose your preferred deployment path:
+
+| Path | Technologies | Best For | Cost |
+|------|---------------|----------|------|
+| **Manual VM Setup** (Phases 1-2) | Bash, Nginx, DuckDNS, Let's Encrypt | Learning, hobby projects | Free ✅ |
+| **Serverless Cloud Run** (Phase 3) | Node.js, Docker, Firestore | Scalable web apps | Free* |
+| **Kubernetes (GKE Autopilot)** (Phase 4) | Kubernetes, GKE, Firestore | Production workloads | ~$20-30/mo |
+| **Infrastructure as Code** (Phase 5) | Terraform, Packer, CI/CD | Reproducible infrastructure | Varies |
+
+*Cloud Run free tier: 2M requests, 360,000 GB-seconds per month
 
 ---
 
-## 📋 Prerequisites
+## � Documentation
+
+This project includes comprehensive documentation:
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute to this project
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** - Community guidelines and expectations
+- **[SECURITY.md](SECURITY.md)** - Security best practices and vulnerability reporting
+- **[RELEASING.md](RELEASING.md)** - Release process and versioning guidelines
+
+---
+
+## �📋 Prerequisites
 
 Before starting, ensure you have the following installed on your **local machine**:
 
@@ -37,31 +57,56 @@ Before starting, ensure you have the following installed on your **local machine
 - **Cloud Monitoring:** First 150 MB of logs per month
 
 **Resources That May Incur Costs:**
-- **GKE Autopilot:** While there's no cluster management fee, you pay for the compute resources (vCPU/RAM) your pods use
+- **GKE Autopilot:** While there's no cluster management fee, you pay for the compute resources (vCPU/RAM) your pods use (~$20-30/month for a basic deployment)
 - **Cloud Storage:** Storage beyond 5GB per month
 - **Network Egress:** Traffic beyond 1GB per month from North America
 - **Cloud Functions:** Invocations beyond free tier limits (used by the Cost Killer function)
 
-**Recommendation:** - Enable billing budgets and alerts in GCP Console
-- Review the [GCP Free Tier documentation](https://cloud.google.com/free/docs/free-cloud-features)
-- The included Cost Killer function (Phase 5) can help prevent overages
+**Cost Optimization Tips:**
+- Enable billing alerts and budgets in GCP Console (covered in Phase 1, Step 3)
+- Review [GCP Free Tier documentation](https://cloud.google.com/free/docs/free-cloud-features)
+- Use the included Cost Killer function (Phase 5) to prevent overages
+- Destroy resources when not in use to avoid unexpected charges
+- Monitor your usage regularly via Cloud Console
+
+---
+
+## 🔒 Security & Contributing
+
+This project is committed to being a welcoming and safe community for all contributors. Before getting started:
+
+1. **Read our [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** - Community standards and expectations
+2. **Review [SECURITY.md](SECURITY.md)** - Security best practices and how to report vulnerabilities
+3. **Check [CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute improvements and fixes
+
+**For maintainers:** See [RELEASING.md](RELEASING.md) for our release process.
 
 ---
 
 ## 🚀 Quick Start
 
-After cloning the repository, make all scripts executable:
+Ready to get started? Here's the 30-second setup:
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/BranchingBad/google-free-tier.git
 cd google-free-tier
 
-# Make scripts executable
-chmod +x 1-gcp-setup/*.sh
-chmod +x 2-host-setup/*.sh
-chmod +x 3-cloud-run-deployment/*.sh
-chmod +x 3-gke-deployment/*.sh
+# 2. Make scripts executable
+chmod +x 1-gcp-setup/*.sh 2-host-setup/*.sh 3-cloud-run-deployment/*.sh 3-gke-deployment/*.sh
+
+# 3. Choose your path:
+# - Manual: Start with Phase 1 below ⬇️
+# - Cloud Run: Jump to Phase 3 after Phase 1
+# - Kubernetes: Jump to Phase 4 after Phase 1
+# - Full IaC: Jump to Phase 5 after Phase 1
 ```
+
+**Estimated Time:** 
+- Manual VM setup: 30-45 minutes
+- Cloud Run deployment: 15-20 minutes (after Phase 1)
+- GKE deployment: 20-30 minutes (after Phase 1)
+- Full Terraform: 10-15 minutes (after Phase 1)
 
 ---
 
@@ -707,6 +752,21 @@ Now every push to the `main` branch will trigger the pipeline.
 
 ## 🐛 Troubleshooting
 
+### Quick Reference
+
+| Issue | Solution | Docs |
+|-------|----------|------|
+| SSH connection fails | Check firewall rules and IAP configuration | [Security.md](SECURITY.md#access-control) |
+| Domain doesn't resolve | Wait 5-10 min for DNS propagation, then try again | Phase 2, Step 3 |
+| SSL certificate fails | Ensure domain resolves before running script | Phase 2, Step 4 |
+| Firestore errors | Create default Firestore database in Console | Phase 3 Prerequisites |
+| Out of memory errors | Verify swap file is active: `free -h` | Phase 2, Step 1 |
+| Nginx won't start | Check if port 80/443 in use: `sudo lsof -i :80` | Phase 2, Step 2 |
+| Docker auth fails | Re-run: `gcloud auth configure-docker` | Phase 3 |
+| Terraform locked | Run: `terraform force-unlock LOCK_ID` | Phase 5 |
+
+---
+
 ### Common Issues
 
 **1. DNS Propagation Delays**
@@ -831,50 +891,114 @@ Now every push to the `main` branch will trigger the pipeline.
 
 ## 📝 Contributing
 
-Contributions are welcome! To contribute:
+We welcome contributions! Whether you're fixing bugs, improving documentation, adding features, or helping other users, your help is appreciated.
+
+**To contribute:**
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
+3. Commit your changes following [Conventional Commits](https://www.conventionalcommits.org/): 
+   ```bash
+   git commit -m 'feat: Add amazing feature'
+   ```
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-Please ensure:
-- Shell scripts pass shellcheck linting: `shellcheck *.sh`
-- Terraform code is formatted: `terraform fmt -recursive`
-- Updates to README are clear and accurate
+**Before contributing, please:**
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines
+- Review [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Ensure shell scripts pass `shellcheck`: `shellcheck *.sh`
 - Test your changes in a clean GCP project
+- Update documentation as needed
+
+---
+
+## � Getting Help
+
+### Documentation
+- **Setup Help:** Review the appropriate phase section below
+- **Security Questions:** See [SECURITY.md](SECURITY.md)
+- **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Bash Scripts:** See [BASH_IMPROVEMENTS.md](BASH_IMPROVEMENTS.md)
+
+### Community Support
+- **Issues & Bugs:** [GitHub Issues](https://github.com/BranchingBad/google-free-tier/issues)
+- **Questions & Discussions:** [GitHub Discussions](https://github.com/BranchingBad/google-free-tier/discussions)
+- **Report Security Issues:** See [SECURITY.md](SECURITY.md) for responsible disclosure
+
+### Debugging
+Check the [Troubleshooting](#-troubleshooting) section below for solutions to common problems.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Google Cloud Platform** - For the generous free tier
+- **Let's Encrypt** - For free SSL certificates
+- **DuckDNS** - For free dynamic DNS services
+- **Open Source Community** - For Nginx, Terraform, Kubernetes, and the tools that power this project
+- **Our Contributors** - Thank you for improving this project!
+
+---
+
+## � License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+## 📌 Project Status
+
+| Component | Status | Version |
+|-----------|--------|---------|
+| Manual VM Setup | ✅ Stable | 2.0.0 |
+| Cloud Run | ✅ Stable | 2.0.0 |
+| GKE Autopilot | ✅ Stable | 2.0.0 |
+| Terraform | ✅ Stable | 2.0.0 |
+| Bash Utilities | ✅ Stable | 2.0.0 |
+| Documentation | ✅ Complete | 2.0.0 |
+
+---
+
+## 📚 Additional Resources
+
+### Official Documentation
+- [Google Cloud Free Tier](https://cloud.google.com/free)
+- [Google Cloud Console](https://console.cloud.google.com)
+- [Terraform GCP Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
+- [Cloud Run Documentation](https://cloud.google.com/run/docs)
+- [GKE Autopilot Documentation](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview)
+
+### Tools & Technologies
+- [Nginx Documentation](https://nginx.org/en/docs/)
+- [Certbot Documentation](https://certbot.eff.org/docs/)
+- [Docker Documentation](https://docs.docker.com/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+- [Terraform Documentation](https://www.terraform.io/docs)
+
+### Learning Resources
+- [Google Cloud Quickstarts](https://cloud.google.com/docs/quickstarts)
+- [Bash Scripting Guide](https://www.gnu.org/software/bash/manual/)
+- [Terraform Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices.html)
+- [Infrastructure as Code Guide](https://en.wikipedia.org/wiki/Infrastructure_as_code)
+
+---
+
+**Last Updated:** November 28, 2025  
+**Latest Release:** [v2.0.0](https://github.com/BranchingBad/google-free-tier/releases/tag/v2.0.0)
+
+---
+
+## 🙏 Acknowledgments
+
+- **Google Cloud Platform** - For the generous free tier
+- **Let's Encrypt** - For free SSL certificates
+- **DuckDNS** - For free dynamic DNS services
+- **Open Source Community** - For Nginx, Terraform, Kubernetes, and the tools that power this project
+- **Our Contributors** - Thank you for improving this project!
 
 ---
 
 ## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).
-
----
-
-## 💬 Support
-
-- **Issues:** [GitHub Issues](https://github.com/BranchingBad/google-free-tier/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/BranchingBad/google-free-tier/discussions)
-- **Documentation:** This README and inline script comments
-
----
-
-## 🙏 Acknowledgments
-
-- Google Cloud Platform for the generous free tier
-- Let's Encrypt for free SSL certificates
-- DuckDNS for free dynamic DNS
-- The open-source community for Nginx, Terraform, and all the tools that make this possible
-
----
-
-## 📚 Additional Resources
-
-- [Google Cloud Free Tier](https://cloud.google.com/free)
-- [Terraform GCP Provider Documentation](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
-- [Cloud Run Documentation](https://cloud.google.com/run/docs)
-- [GKE Autopilot Documentation](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview)
-- [Nginx Documentation](https://nginx.org/en/docs/)
-- [Certbot Documentation](https://certbot.eff.org/docs/)
