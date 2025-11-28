@@ -63,7 +63,8 @@ resource "google_compute_instance" "default" {
 
   boot_disk {
     initialize_params {
-      image = "${var.image_family}/${var.image_project}"
+      # FIXED: Correct image path format
+      image = "projects/${var.image_project}/global/images/family/${var.image_family}"
       size  = var.boot_disk_size
       type  = var.boot_disk_type
     }
@@ -79,7 +80,7 @@ resource "google_compute_instance" "default" {
   tags = ["http-server", "https-server"]
 
   # Use file() instead of deprecated template_file data source
-  metadata_startup_script = file("startup-script.sh.tpl")
+  metadata_startup_script = file("${path.module}/startup-script.sh.tpl")
 
   service_account {
     email  = google_service_account.vm_sa[0].email
@@ -206,7 +207,8 @@ resource "google_monitoring_alert_policy" "default" {
       trigger {
         count = 1
       }
-      aggregator {
+      # FIXED: Changed from 'aggregator' to 'aggregations' (plural)
+      aggregations {
         alignment_period   = "60s"
         cross_series_reducer = "REDUCE_COUNT_FALSE"
         per_series_aligner = "ALIGN_NEXT_OLDER"

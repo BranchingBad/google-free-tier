@@ -19,6 +19,11 @@ variable "gcs_bucket_name" {
   type        = string
 }
 
+variable "tf_state_bucket" {
+  description = "The name of the GCS bucket for Terraform state."
+  type        = string
+}
+
 variable "image_tag" {
   description = "The tag for the Docker image."
   type        = string
@@ -122,4 +127,10 @@ variable "budget_amount" {
   description = "The amount to set the budget alert at (e.g. 5 USD)."
   type        = string
   default     = "5"
+}
+
+variable "gke_cluster_name" {
+  description = "The name of the GKE cluster."
+  type        = string
+  default     = "gke-autopilot-cluster"
 }

@@ -46,6 +46,23 @@ Before starting, ensure you have the following installed on your **local machine
 
 ---
 
+## 🚀 Quick Start
+
+After cloning the repository, make all scripts executable:
+
+```bash
+git clone https://github.com/BranchingBad/google-free-tier.git
+cd google-free-tier
+
+# Make scripts executable
+chmod +x 1-gcp-setup/*.sh
+chmod +x 2-host-setup/*.sh
+chmod +x 3-cloud-run-deployment/*.sh
+chmod +x 3-gke-deployment/*.sh
+```
+
+---
+
 ## Phase 1: 🏗️ Google Cloud Setup (Manual)
 
 Run these commands from your **local machine** to prepare your GCP environment.
@@ -65,6 +82,8 @@ gcloud compute instances create free-tier-vm \
   --boot-disk-type=pd-standard \
   --boot-disk-auto-delete
 ```
+
+**Note:** If you want to use a different zone, update `--zone` parameter and use the same zone throughout this guide.
 
 **Validation:** Verify the VM is running:
 ```bash
@@ -97,6 +116,7 @@ bash ./1-gcp-setup/3-setup-monitoring.sh
 
 This script will prompt you for:
 - Email address for alerts
+- Display name for notification channel
 - Domain name to monitor
 
 ### 4. Create Secrets 🤫
@@ -106,6 +126,15 @@ Interactively creates secrets (DuckDNS token, Email, etc.) in Google Secret Mana
 ```bash
 bash ./1-gcp-setup/4-create-secrets.sh
 ```
+
+**Secrets created:**
+- `duckdns_token` - Your DuckDNS token
+- `email_address` - Email for SSL renewal notices
+- `domain_name` - Your domain (e.g., my.duckdns.org)
+- `gcs_bucket_name` - GCS bucket name for backups
+- `tf_state_bucket` - Terraform state bucket name
+- `backup_dir` - Directory to back up (e.g., /var/www/html)
+- `billing_account_id` - Your billing account ID
 
 **Note:** These secrets are used by Terraform and Cloud Build configurations.
 
@@ -117,7 +146,12 @@ Creates the Docker repository required for Cloud Run and GKE deployments.
 bash ./1-gcp-setup/5-create-artifact-registry.sh
 ```
 
-This creates a Docker repository in Artifact Registry where your container images will be stored.
+This creates a Docker repository named `gke-apps` in Artifact Registry where your container images will be stored.
+
+**Validation:**
+```bash
+gcloud artifacts repositories list --location=us-central1
+```
 
 ---
 
@@ -133,6 +167,9 @@ Once connected, clone this repository on the VM:
 ```bash
 git clone https://github.com/BranchingBad/google-free-tier.git
 cd google-free-tier
+
+# Make scripts executable
+chmod +x 2-host-setup/*.sh
 ```
 
 The scripts in `2-host-setup/` are numbered for clarity. Run them in order. They are idempotent (can be safely re-run).
@@ -277,21 +314,24 @@ The `3-cloud-run-deployment/` directory contains a sample "Hello World" Node.js 
 ### Deploy to Cloud Run
 
 ```bash
-# From your local machine
+# From your local machine (in the repository root)
 bash ./3-cloud-run-deployment/setup-cloud-run.sh
 ```
 
 This script will:
-1. Build the Docker container image
-2. Push it to Google Artifact Registry
-3. Deploy the service to Cloud Run
+1. Configure Docker authentication with Artifact Registry
+2. Prompt you to build the Docker container image
+3. Prompt you to push it to Google Artifact Registry
+4. Deploy the service to Cloud Run
 
-The script will prompt you to run a few `docker` commands in a separate terminal. Follow the on-screen instructions carefully.
+The script will prompt you to run Docker commands in a separate terminal. Follow the on-screen instructions carefully.
 
-**Validation:** Once complete, the script provides the URL of your service:
+**Validation:** Once complete, get the URL of your service:
 ```bash
-gcloud run services describe hello-world --region=us-central1 --format='value(status.url)'
+gcloud run services describe hello-cloud-run --region=us-central1 --format='value(status.url)'
 ```
+
+Visit the URL in your browser to see your application running.
 
 ---
 
@@ -303,30 +343,47 @@ Deploy a Node.js application to **GKE Autopilot**.
 
 ### Prerequisites
 - Docker installed
-- Artifact Registry created
+- Artifact Registry created (Phase 1, Step 5)
 - Terraform installed (the script uses Terraform for cluster provisioning)
 
 ### Deploy to GKE
 
 ```bash
-# From your local machine
-bash ./4-gke-deployment/setup-gke.sh
+# From your local machine (in the repository root)
+bash ./3-gke-deployment/setup-gke.sh
 ```
 
 This script will:
-1. Build and push the Docker image
-2. Use Terraform to provision the GKE Autopilot cluster
-3. Apply Kubernetes manifests to deploy your application
+1. Configure Docker authentication
+2. Prompt you to build and push the Docker image
+3. Fetch configuration from Secret Manager
+4. Use Terraform to provision the GKE Autopilot cluster
+5. Apply Kubernetes manifests to deploy your application
 
 **Validation:** Check your deployment:
 ```bash
+# Configure kubectl
+gcloud container clusters get-credentials gke-autopilot-cluster --region=us-central1
+
+# Check pods and services
 kubectl get pods
 kubectl get services
+kubectl get ingress
 ```
 
-**Cleanup:** To avoid ongoing charges:
+**Get the public IP:**
 ```bash
-cd 4-gke-deployment/terraform
+kubectl get ingress hello-gke-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+**Cleanup:** To avoid ongoing charges, destroy the GKE resources:
+```bash
+cd terraform
+terraform destroy -var="enable_gke=true" -var="enable_vm=false" -var="enable_cloud_run=false"
+```
+
+Or destroy everything managed by Terraform:
+```bash
 terraform destroy
 ```
 
@@ -351,42 +408,48 @@ terraform init
 terraform apply
 ```
 
-This creates a versioned GCS bucket for storing Terraform state files securely.
+Enter your GCP project ID when prompted. This creates a versioned GCS bucket named `<project-id>-tfstate` for storing Terraform state files securely.
 
 ### 2. Configure Variables
 
 Create a `terraform/terraform.tfvars` file in the main `terraform/` directory:
 
 ```hcl
-project_id      = "your-gcp-project-id"
-region          = "us-central1"
-zone            = "us-central1-a"
-email_address   = "your-email@example.com"
-duckdns_token   = "your-duckdns-token"
-domain_name     = "your-domain.duckdns.org"
-gcs_bucket_name = "your-backup-bucket"
-backup_dir      = "/var/www/html"
-tf_state_bucket = "your-tf-state-bucket-name"  # Created in step 1
-image_tag       = "latest"
+project_id              = "your-gcp-project-id"
+region                  = "us-central1"
+zone                    = "us-central1-a"
+artifact_registry_region = "us-central1"
+email_address           = "your-email@example.com"
+duckdns_token           = "your-duckdns-token"
+domain_name             = "your-domain.duckdns.org"
+gcs_bucket_name         = "your-backup-bucket"
+backup_dir              = "/var/www/html"
+tf_state_bucket         = "your-project-id-tfstate"  # Created in step 1
+billing_account_id      = "XXXXXX-XXXXXX-XXXXXX"     # Your billing account ID
+image_tag               = "latest"
 
 # Feature Flags - Enable/disable components
-enable_vm        = true   # Deploy the e2-micro VM
-enable_cloud_run = true   # Deploy Cloud Run service
-enable_gke       = false  # Deploy GKE cluster (costs $20-30/month)
+enable_vm                       = true   # Deploy the e2-micro VM
+enable_cloud_run                = true   # Deploy Cloud Run service
+enable_cloud_run_domain_mapping = false  # Map custom domain to Cloud Run (conflicts with VM on same domain)
+enable_gke                      = false  # Deploy GKE cluster (costs $20-30/month)
+
+# Budget Configuration
+budget_amount = "5"  # Monthly budget in USD
 ```
 
-**Security Note:** Never commit `terraform.tfvars` to version control. Add it to `.gitignore`.
+**Security Note:** Never commit `terraform.tfvars` to version control. It's already in `.gitignore`.
 
 ### 3. Initialize Terraform
 
-Navigate to the `terraform/` directory and initialize:
+Navigate to the `terraform/` directory and initialize with your state bucket:
 
 ```bash
 cd terraform
-terraform init -backend-config="bucket=YOUR_STATE_BUCKET_NAME"
+terraform init -backend-config="bucket=your-project-id-tfstate"
 ```
 
-Replace `YOUR_STATE_BUCKET_NAME` with the bucket created in step 1.
+Replace `your-project-id-tfstate` with the bucket created in step 1.
 
 ### 4. Plan and Apply
 
@@ -407,7 +470,7 @@ Type `yes` when prompted to create the resources.
 After Terraform completes:
 
 ```bash
-# Check VM
+# Check VM (if enabled)
 gcloud compute instances list
 
 # Check Cloud Run (if enabled)
@@ -415,6 +478,9 @@ gcloud run services list
 
 # Check GKE (if enabled)
 gcloud container clusters list
+
+# View outputs
+terraform output
 ```
 
 ### 💸 Cost Killer Function
@@ -423,17 +489,29 @@ The Terraform configuration includes a "Cost Killer" Cloud Function (`terraform/
 
 **How it works:**
 - Monitors your GCP billing via Pub/Sub notifications
-- If spending exceeds your budget (default: $5/month)
-- Automatically stops the VM to prevent overages
-- Sends email notification
+- Triggers when budget threshold is reached (default: 50%, 90%, 100%)
+- At 100% threshold, automatically stops the VM to prevent overages
+- Sends email notification via the configured alert channel
 
 **Configuration:**
 ```hcl
 # In terraform/terraform.tfvars
-budget_amount = 5.00  # Monthly budget in USD
+budget_amount = "5"  # Monthly budget in USD (default: $5)
 ```
 
-**Note:** The Cost Killer only stops the VM. GKE and Cloud Run services must be manually disabled if costs exceed expectations.
+**Limitations:**
+- Only stops the VM instance
+- Does NOT stop Cloud Run or GKE services
+- You must manually disable those services if costs exceed expectations
+
+**Testing:**
+```bash
+# Check function logs
+gcloud functions logs read cost-killer --limit=50
+
+# Check budget status
+gcloud billing budgets list --billing-account=BILLING_ACCOUNT_ID
+```
 
 ### Destroy Resources
 
@@ -444,7 +522,13 @@ cd terraform
 terraform destroy
 ```
 
-⚠️ **Warning:** This will delete all resources including VMs, databases, and may cause data loss. Ensure you have backups.
+⚠️ **Warning:** This will delete all resources including VMs, clusters, and may cause data loss. Ensure you have backups.
+
+To destroy only the state bucket:
+```bash
+cd bootstrap
+terraform destroy
+```
 
 ---
 
@@ -456,47 +540,76 @@ terraform destroy
 # Delete the VM
 gcloud compute instances delete free-tier-vm --zone=us-central1-a
 
-# Delete monitoring alert policies
+# Delete monitoring uptime checks
+gcloud monitoring uptime-checks list
+gcloud monitoring uptime-checks delete UPTIME_CHECK_ID
+
+# Delete alert policies
 gcloud alpha monitoring policies list
 gcloud alpha monitoring policies delete POLICY_ID
 
-# Delete secrets
-gcloud secrets delete duckdns-token
-gcloud secrets delete email-address
+# Delete notification channels
+gcloud alpha monitoring channels list
+gcloud alpha monitoring channels delete CHANNEL_ID
 
-# Delete artifact registry
-gcloud artifacts repositories delete docker-repo --location=us-central1
+# Delete secrets
+gcloud secrets delete duckdns_token
+gcloud secrets delete email_address
+gcloud secrets delete domain_name
+gcloud secrets delete gcs_bucket_name
+gcloud secrets delete tf_state_bucket
+gcloud secrets delete backup_dir
+gcloud secrets delete billing_account_id
+
+# Delete artifact registry (repository name is 'gke-apps')
+gcloud artifacts repositories delete gke-apps --location=us-central1
 
 # Delete backup bucket (will delete all backups!)
 gsutil rm -r gs://your-backup-bucket-name
+
+# Delete firewall rules (if you want to clean up completely)
+gcloud compute firewall-rules delete allow-http-https
+gcloud compute firewall-rules delete allow-ssh-from-iap
 ```
 
 ### Cloud Run Cleanup (Phase 3)
 
 ```bash
 # Delete the service
-gcloud run services delete hello-world --region=us-central1
+gcloud run services delete hello-cloud-run --region=us-central1
 
 # Delete container images
+gcloud artifacts docker images list us-central1-docker.pkg.dev/PROJECT_ID/gke-apps
 gcloud artifacts docker images delete \
-  us-central1-docker.pkg.dev/PROJECT_ID/docker-repo/hello-world:latest
+  us-central1-docker.pkg.dev/PROJECT_ID/gke-apps/hello-cloud-run:latest
 ```
 
 ### GKE Cleanup (Phase 4)
 
+If you deployed GKE using Terraform (via the main terraform directory):
+
 ```bash
-cd 4-gke-deployment/terraform
+cd terraform
 terraform destroy
 ```
 
-Or manually:
+Or to destroy only GKE resources while keeping VM:
+
 ```bash
-gcloud container clusters delete CLUSTER_NAME --zone=us-central1-a
+cd terraform
+terraform destroy -var="enable_gke=true" -var="enable_vm=false"
+```
+
+Or delete the cluster manually:
+
+```bash
+gcloud container clusters delete gke-autopilot-cluster --region=us-central1
 ```
 
 ### Terraform Cleanup (Phase 5)
 
 ```bash
+# Destroy all infrastructure
 cd terraform
 terraform destroy
 
@@ -522,15 +635,19 @@ Located in `packer/`, this configuration builds a custom Google Compute Engine i
 ```bash
 cd packer
 packer init .
-packer build template.pkr.hcl
+packer build -var="project_id=YOUR_PROJECT_ID" gce-image.pkr.hcl
 ```
 
 **Use the custom image:**
+
+Update the `image_family` variable in your Terraform configuration or VM creation command:
+
 ```bash
 gcloud compute instances create free-tier-vm \
-  --image=your-custom-image \
+  --image=gcp-free-tier-nginx-TIMESTAMP \
   --image-project=your-project-id \
-  ...
+  --machine-type=e2-micro \
+  --zone=us-central1-a
 ```
 
 ### Cloud Build (CI/CD)
@@ -543,12 +660,35 @@ The `cloudbuild.yaml` file defines an automated pipeline:
 4. **Deploy** - Applies Terraform changes automatically
 
 **Setup Cloud Build trigger:**
+
 ```bash
+# Connect your GitHub repository
 gcloud builds triggers create github \
   --repo-name=google-free-tier \
   --repo-owner=YOUR_GITHUB_USERNAME \
   --branch-pattern="^main$" \
   --build-config=cloudbuild.yaml
+```
+
+**Grant Cloud Build necessary permissions:**
+
+```bash
+# Get Cloud Build service account email
+PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
+CLOUD_BUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+
+# Grant permissions
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+  --member="serviceAccount:${CLOUD_BUILD_SA}" \
+  --role="roles/compute.admin"
+
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+  --member="serviceAccount:${CLOUD_BUILD_SA}" \
+  --role="roles/container.admin"
+
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+  --member="serviceAccount:${CLOUD_BUILD_SA}" \
+  --role="roles/iam.serviceAccountUser"
 ```
 
 Now every push to the `main` branch will trigger the pipeline.
@@ -567,65 +707,110 @@ Now every push to the `main` branch will trigger the pipeline.
 **2. Insufficient Permissions**
 - **Problem:** `gcloud` commands fail with permission errors
 - **Solution:** Ensure you have necessary IAM roles (Compute Admin, Storage Admin, etc.)
-- **Check:** `gcloud projects get-iam-policy PROJECT_ID`
+- **Check:** `gcloud projects get-iam-policy PROJECT_ID --flatten="bindings[].members" --filter="bindings.members:user:YOUR_EMAIL"`
 
 **3. Swap File Not Activating**
 - **Problem:** System still runs out of memory
 - **Solution:** Verify swap is enabled: `sudo swapon -a` and check `free -h`
+- **Debug:** Check logs: `journalctl -u swap.target`
 
 **4. Port 80/443 Already in Use**
 - **Problem:** Nginx fails to start
 - **Solution:** Check what's using the ports: `sudo lsof -i :80` and kill the process
+- **Alternative:** `sudo netstat -tulpn | grep :80`
 
 **5. Docker Permission Denied**
 - **Problem:** Cannot connect to Docker daemon
 - **Solution:** Add user to docker group: `sudo usermod -aG docker $USER` then logout/login
+- **Quick fix:** Use `sudo` before docker commands
 
 **6. Terraform State Locked**
 - **Problem:** `terraform apply` fails with state lock error
 - **Solution:** If you're sure no other process is running: `terraform force-unlock LOCK_ID`
+- **Prevention:** Always use `terraform destroy` to clean up, never manually delete resources
 
 **7. Cost Killer Not Triggering**
 - **Problem:** Billing exceeded but VM still running
 - **Solution:** Check Cloud Function logs, verify Pub/Sub subscription, ensure IAM permissions
+- **Debug:** 
+  ```bash
+  gcloud functions logs read cost-killer --limit=50
+  gcloud pubsub subscriptions list
+  ```
+
+**8. Artifact Registry Authentication Fails**
+- **Problem:** `docker push` fails with authentication error
+- **Solution:** Re-run: `gcloud auth configure-docker us-central1-docker.pkg.dev`
+- **Alternative:** Use `gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev`
+
+**9. Terraform Backend Initialization Error**
+- **Problem:** `terraform init` fails to find backend bucket
+- **Solution:** Ensure you created the state bucket in bootstrap step and use correct bucket name
+- **Check:** `gsutil ls | grep tfstate`
+
+**10. GKE Cluster Connection Failed**
+- **Problem:** `kubectl` commands fail after cluster creation
+- **Solution:** Get credentials: `gcloud container clusters get-credentials CLUSTER_NAME --region=us-central1`
 
 ### Getting Help
 
 - Check [GCP Documentation](https://cloud.google.com/docs)
 - Open an issue on [GitHub](https://github.com/BranchingBad/google-free-tier/issues)
-- Review logs: `journalctl -u nginx` or `gcloud logging read`
+- Review logs:
+  - VM: `journalctl -u nginx` or `gcloud logging read`
+  - Cloud Run: `gcloud run services logs read hello-cloud-run`
+  - GKE: `kubectl logs POD_NAME`
 
 ---
 
 ## 🔒 Security Best Practices
 
 1. **Never commit secrets to Git**
-   - Add `terraform.tfvars`, `*.env`, and `*.key` to `.gitignore`
+   - Add `terraform.tfvars`, `*.env`, and `*.key` to `.gitignore` ✅ (already done)
    - Use Secret Manager for all sensitive data
+   - Rotate credentials regularly
 
 2. **Use least-privilege IAM roles**
    - Don't use Owner role for service accounts
    - Grant only necessary permissions
+   - Review permissions quarterly
 
 3. **Enable OS Login**
    ```bash
    gcloud compute instances add-metadata free-tier-vm \
-     --metadata enable-oslogin=TRUE
+     --metadata enable-oslogin=TRUE \
+     --zone=us-central1-a
    ```
 
 4. **Regular security updates**
    - The security script enables unattended-upgrades
    - Check regularly: `sudo apt update && sudo apt upgrade`
+   - Monitor CVE announcements
 
 5. **Monitor access logs**
    - Review Fail2Ban logs: `sudo fail2ban-client status sshd`
    - Check Nginx access logs: `sudo tail -f /var/log/nginx/access.log`
+   - Set up log-based alerts in Cloud Monitoring
 
 6. **Use strong firewall rules**
    - Only open necessary ports
    - Consider restricting SSH to specific IPs
+   - Use IAP for SSH access (included in Terraform config)
 
 7. **Enable 2FA on your GCP account**
+   - Go to https://myaccount.google.com/security
+   - Enable 2-Step Verification
+   - Use security keys for additional protection
+
+8. **Backup Strategy**
+   - The backup script runs daily at 3 AM
+   - Backups are retained for 7 days (configurable in Terraform)
+   - Test restore procedures regularly
+
+9. **Audit Trail**
+   - Enable Cloud Audit Logs
+   - Review activity regularly
+   - Set up anomaly detection alerts
 
 ---
 
@@ -640,9 +825,10 @@ Contributions are welcome! To contribute:
 5. Open a Pull Request
 
 Please ensure:
-- Shell scripts pass shellcheck linting
-- Terraform code is formatted: `terraform fmt`
+- Shell scripts pass shellcheck linting: `shellcheck *.sh`
+- Terraform code is formatted: `terraform fmt -recursive`
 - Updates to README are clear and accurate
+- Test your changes in a clean GCP project
 
 ---
 
@@ -666,3 +852,14 @@ This project is open source and available under the [MIT License](LICENSE).
 - Let's Encrypt for free SSL certificates
 - DuckDNS for free dynamic DNS
 - The open-source community for Nginx, Terraform, and all the tools that make this possible
+
+---
+
+## 📚 Additional Resources
+
+- [Google Cloud Free Tier](https://cloud.google.com/free)
+- [Terraform GCP Provider Documentation](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
+- [Cloud Run Documentation](https://cloud.google.com/run/docs)
+- [GKE Autopilot Documentation](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview)
+- [Nginx Documentation](https://nginx.org/en/docs/)
+- [Certbot Documentation](https://certbot.eff.org/docs/)
