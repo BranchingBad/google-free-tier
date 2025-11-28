@@ -1,9 +1,6 @@
 #!/bin/bash
 #
 # Phase 7: Harden server security.
-#
-# This script installs Fail2Ban, enables unattended security updates,
-# and hardens the SSH configuration.
 
 # Resolve the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,7 +25,6 @@ main() {
     log_info "Configuring Fail2Ban..."
     cat <<EOF > /etc/fail2ban/jail.local
 [DEFAULT]
-# Ban hosts for 1 hour
 bantime = 1h
 findtime = 10m
 maxretry = 5
@@ -40,13 +36,11 @@ enabled = true
 enabled = true
 EOF
 
-    log_info "Restarting Fail2Ban service..."
     systemctl restart fail2ban
-
     if systemctl is-active --quiet fail2ban; then
         log_success "Fail2Ban is running."
     else
-        log_error "Fail2Ban is not running. Please check: sudo systemctl status fail2ban"
+        log_error "Fail2Ban is not running. Check status."
     fi
 
     # --- 2. Unattended Upgrades ---
@@ -59,19 +53,30 @@ EOF
         log_success "Unattended Upgrades installed."
     fi
 
-    log_info "Enabling automatic security updates..."
-    # Pre-seed the configuration to enable auto updates without prompting
     echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean true' | debconf-set-selections
     dpkg-reconfigure -f noninteractive unattended-upgrades
 
     # --- 3. SSH Hardening ---
     log_info "Hardening SSH configuration..."
+
+    # FIXED: Check for SSH keys before disabling password auth to prevent lockout
+    local has_keys=false
     
-    # Create a drop-in configuration file for overrides
-    # Debian 12 uses /etc/ssh/sshd_config.d/ by default.
-    cat <<EOF > /etc/ssh/sshd_config.d/99-hardening.conf
-# Hardened SSH Configuration added by setup script
-PermitRootLogin no
+    # Check root keys
+    if [[ -f /root/.ssh/authorized_keys && -s /root/.ssh/authorized_keys ]]; then has_keys=true; fi
+    # Check OS Login (Google Compute Engine specific)
+    if [[ -f /var/google-users.d ]]; then has_keys=true; fi
+    # Check other user keys
+    if grep -q "ssh-rsa\|ssh-ed25519" /home/*/.ssh/authorized_keys 2>/dev/null; then has_keys=true; fi
+
+    if [[ "$has_keys" == "false" ]]; then
+        log_warn "NO SSH KEYS DETECTED! Skipping SSH hardening to prevent lockout."
+        log_warn "Please set up SSH keys before disabling password authentication."
+    else
+        # Safe to proceed
+        cat <<EOF > /etc/ssh/sshd_config.d/99-hardening.conf
+# Hardened SSH Configuration
+PermitRootLogin prohibit-password
 PasswordAuthentication no
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
@@ -80,10 +85,17 @@ X11Forwarding no
 PrintMotd no
 EOF
 
-    log_info "Restarting SSH service..."
-    systemctl restart sshd
+        # Validate config before restarting
+        if sshd -t; then
+            log_info "Restarting SSH service..."
+            systemctl restart sshd
+            log_success "SSH security hardening applied."
+        else
+            log_error "SSH configuration invalid! Reverting..."
+            rm /etc/ssh/sshd_config.d/99-hardening.conf
+        fi
+    fi
 
-    log_success "Security hardening complete."
     log_info "----------------------------------------------------"
 }
 

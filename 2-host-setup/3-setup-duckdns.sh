@@ -30,8 +30,9 @@ main() {
     log_info "--- Phase 3: Setting up DuckDNS ---"
 
     # Support both Env Vars and CLI Args
-    DOMAIN="${1:-${DOMAIN}}"
-    TOKEN="${2:-${DUCKDNS_TOKEN:-${TOKEN}}}" # Handle DUCKDNS_TOKEN or TOKEN
+    # FIXED: Removed circular reference in TOKEN assignment
+    DOMAIN="${1:-${DOMAIN:-}}"
+    TOKEN="${2:-${DUCKDNS_TOKEN:-}}"
 
     if [[ -z "${DOMAIN}" || -z "${TOKEN}" ]]; then
         prompt_for_credentials
@@ -39,7 +40,6 @@ main() {
         log_info "Using credentials from environment/arguments."
     fi
 
-    # ... (Rest of the script remains unchanged)
     log_info "Creating installation directory at ${INSTALL_DIR}..."
     mkdir -p "${INSTALL_DIR}"
 
@@ -70,6 +70,7 @@ EOF
         log_info "Setting up cron job to run every 5 minutes..."
         
         CRON_CMD="*/5 * * * * ${SCRIPT_FILE}"
+        # Safer cron manipulation
         (crontab -l 2>/dev/null | grep -vF "${SCRIPT_FILE}"; echo "${CRON_CMD}") | crontab -
 
         log_success "Cron job successfully configured."

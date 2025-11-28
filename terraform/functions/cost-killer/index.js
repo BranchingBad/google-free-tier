@@ -13,15 +13,26 @@ exports.stopBilling = async (message, context) => {
     : null;
 
   if (!pubsubData) {
-    console.log('No data received');
+    console.error('No data received from Pub/Sub.');
     return;
   }
 
-  console.log(`Cost Amount: ${pubsubData.costAmount}, Budget Amount: ${pubsubData.budgetAmount}`);
+  const costAmount = pubsubData.costAmount || 0;
+  const budgetAmount = pubsubData.budgetAmount || 0;
 
-  // Check if the budget limit (1.0 threshold) has been reached or exceeded
-  if (pubsubData.alertThresholdExceeded && pubsubData.alertThresholdExceeded >= 1.0) {
-    console.log('Budget limit exceeded. Attempting to stop services...');
+  if (budgetAmount === 0) {
+    console.warn('Budget amount is zero or missing. Cannot calculate threshold.');
+    return;
+  }
+
+  // FIXED: Calculate ratio manually to be sure
+  const costRatio = costAmount / budgetAmount;
+  
+  console.log(`Budget Status: $${costAmount} / $${budgetAmount} (Ratio: ${costRatio.toFixed(2)})`);
+
+  // Check if we hit 100% (1.0) of the budget
+  if (costRatio >= 1.0) {
+    console.warn('🚨 Budget limit reached or exceeded! Initiating VM shutdown protocol...');
 
     const projectId = process.env.PROJECT_ID;
     const zone = process.env.ZONE;
@@ -37,14 +48,14 @@ exports.stopBilling = async (message, context) => {
           instance: instanceName,
         });
 
-        console.log(`Stop request sent. Operation status: ${response.status}`);
+        console.log(`Stop request successfully sent. Operation status: ${response.status}`);
       } catch (err) {
-        console.error('Error stopping instance:', err);
+        console.error('FATAL ERROR: Failed to stop instance:', err);
       }
     } else {
-      console.log('Instance configuration missing. Skipping VM shutdown.');
+      console.error('Missing configuration (PROJECT_ID, ZONE, or INSTANCE_NAME). Skipping VM shutdown.');
     }
   } else {
-    console.log('Budget not yet exceeded or no threshold triggered.');
+    console.log('Budget is within safe limits.');
   }
 };

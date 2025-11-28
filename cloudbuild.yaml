@@ -1,3 +1,7 @@
+timeout: 1200s # 20 minutes
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
 # 1. Lint shell scripts
 - name: 'koalaman/shellcheck-alpine'
@@ -14,14 +18,11 @@ steps:
   args:
     - '-c'
     - |
-      echo "Checking Terraform formatting..."
       terraform fmt -check
-      
-      echo "Validating Terraform configuration..."
       terraform init -backend=false
       terraform validate
 
-# 3a. Build the Docker image (Cloud Run)
+# 3a. Build Docker (Cloud Run)
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'build'
@@ -29,7 +30,7 @@ steps:
     - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
     - './3-cloud-run-deployment/app'
 
-# 3b. Build the Docker image (GKE)
+# 3b. Build Docker (GKE)
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'build'
@@ -37,28 +38,25 @@ steps:
     - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
     - './3-gke-deployment/app'
 
-# 4a. Push the Docker image (Cloud Run)
+# 4a. Push (Cloud Run)
 - name: 'gcr.io/cloud-builders/docker'
-  args:
-    - 'push'
-    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
+  args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}']
 
-# 4b. Push the Docker image (GKE)
+# 4b. Push (GKE)
 - name: 'gcr.io/cloud-builders/docker'
-  args:
-    - 'push'
-    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
+  args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}']
 
-# 5. Initialize Terraform (Real Init)
+# 5. Initialize Terraform
 - name: 'hashicorp/terraform:1.8.4'
   entrypoint: 'sh'
   dir: 'terraform'
   secretEnv: ['TF_VAR_tf_state_bucket']
   args:
     - '-c'
-    - 'terraform init -backend-config="bucket=$$TF_VAR_tf_state_bucket"'
+    # FIXED: Use $$ to escape the variable for Cloud Build substitution
+    - 'echo "Initializing with bucket: $$TF_VAR_tf_state_bucket" && terraform init -backend-config="bucket=$$TF_VAR_tf_state_bucket"'
 
-# 6. Apply Terraform configuration
+# 6. Apply Terraform
 - name: 'hashicorp/terraform:1.8.4'
   entrypoint: 'sh'
   dir: 'terraform'
@@ -78,18 +76,15 @@ steps:
         -var="region=${_REGION}" \
         -var="image_tag=${SHORT_SHA}"
 
-# Store the image names for other builds
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
 
-# Default substitutions
 substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'gke-apps'
   _IMAGE_NAME: 'hello-cloud-run'
 
-# Map Secret Manager secrets to Environment Variables
 availableSecrets:
   secretManager:
   - versionName: projects/$PROJECT_ID/secrets/duckdns_token/versions/latest

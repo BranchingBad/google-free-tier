@@ -8,7 +8,6 @@ set -e
 exec > >(tee /var/log/startup-script.log | logger -t startup-script -s 2>/dev/console) 2>&1
 
 # --- Run Once Logic ---
-# If this file exists, we assume setup has already run successfully.
 if [ -f /var/lib/google-free-tier-setup-complete ]; then
     echo "Setup already complete. Skipping."
     exit 0
@@ -18,29 +17,30 @@ echo "--- Startup Script Initiated ---"
 
 # 1. Fetch secrets from Secret Manager
 echo "Fetching secrets..."
-# Export these as environment variables for the setup scripts to use
 export DUCKDNS_TOKEN=$(gcloud secrets versions access latest --secret="duckdns_token")
 export EMAIL=$(gcloud secrets versions access latest --secret="email_address")
 export DOMAIN=$(gcloud secrets versions access latest --secret="domain_name")
-export GCS_BUCKET_NAME=$(gcloud secrets versions access latest --secret="gcs_bucket_name")
+# GCS Bucket Name is now injected via Terraform template
+export GCS_BUCKET_NAME="${gcs_bucket_name}"
 export BACKUP_DIR=$(gcloud secrets versions access latest --secret="backup_dir")
 
 # 2. Download setup scripts from GCS
 echo "Downloading setup scripts from gs://${GCS_BUCKET_NAME}/setup-scripts/..."
 mkdir -p /tmp/2-host-setup
-# Add retry logic for resilience
-for i in {1..5};
-do
+
+# FIXED: Added retry logic for resilience
+MAX_RETRIES=5
+for ((i=1; i<=MAX_RETRIES; i++)); do
   if gsutil cp -r "gs://${GCS_BUCKET_NAME}/setup-scripts/*" /tmp/2-host-setup/; then
+    echo "Download successful."
     break
   fi
-  echo "Download failed, retrying in 5s..."
+  echo "Download failed (Attempt $i/$MAX_RETRIES). Retrying in 5s..."
   sleep 5
 done
 
-# Check if download actually succeeded before proceeding
-if [ ! -d "/tmp/2-host-setup" ] || [ -z "$(ls -A /tmp/2-host-setup)" ];
-then
+# FIXED: Check if download actually succeeded before proceeding
+if [ ! -d "/tmp/2-host-setup" ] || [ -z "$(ls -A /tmp/2-host-setup)" ]; then
     echo "CRITICAL ERROR: Failed to download setup scripts. Aborting setup."
     exit 1
 fi
@@ -48,7 +48,6 @@ fi
 chmod +x /tmp/2-host-setup/*.sh
 
 # 3. Run setup scripts
-# Use 'sudo -E' to preserve the exported environment variables
 echo "Running setup scripts..."
 sudo /tmp/2-host-setup/1-create-swap.sh
 sudo /tmp/2-host-setup/2-install-nginx.sh

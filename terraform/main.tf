@@ -63,7 +63,6 @@ resource "google_compute_instance" "default" {
 
   boot_disk {
     initialize_params {
-      # FIXED: Correct image path format
       image = "projects/${var.image_project}/global/images/family/${var.image_family}"
       size  = var.boot_disk_size
       type  = var.boot_disk_type
@@ -79,21 +78,21 @@ resource "google_compute_instance" "default" {
 
   tags = ["http-server", "https-server"]
 
-  # Use file() instead of deprecated template_file data source
-  metadata_startup_script = file("${path.module}/startup-script.sh.tpl")
+  # UPDATED: Use templatefile to inject the bucket name safely
+  metadata_startup_script = templatefile("${path.module}/startup-script.sh.tpl", {
+    gcs_bucket_name = google_storage_bucket.backup_bucket[0].name
+  })
 
   service_account {
     email  = google_service_account.vm_sa[0].email
     scopes = ["cloud-platform"]
   }
 
-  # Wait for scripts to be uploaded to GCS before creating the VM.
   depends_on = [
     google_storage_bucket_object.setup_scripts
   ]
 }
 
-# Creates a firewall rule to allow HTTP and HTTPS traffic from anywhere.
 resource "google_compute_firewall" "allow_http_https" {
   count   = var.enable_vm ? 1 : 0
   name    = "allow-http-https"
@@ -104,11 +103,10 @@ resource "google_compute_firewall" "allow_http_https" {
     ports    = ["80", "443"]
   }
 
-  target_tags = ["http-server", "https-server"]
+  target_tags   = ["http-server", "https-server"]
   source_ranges = ["0.0.0.0/0"]
 }
 
-# Restrict SSH to IAP only
 resource "google_compute_firewall" "allow_ssh_iap" {
   count   = var.enable_vm ? 1 : 0
   name    = "allow-ssh-from-iap"
@@ -119,25 +117,21 @@ resource "google_compute_firewall" "allow_ssh_iap" {
     ports    = ["22"]
   }
 
-  target_tags = ["http-server", "https-server"] 
-  
-  # Allow connections only from Google IAP range
+  target_tags   = ["http-server", "https-server"]
   source_ranges = ["35.235.240.0/20"]
 }
 
-# Bucket is needed for VM backups and storing setup scripts
 resource "google_storage_bucket" "backup_bucket" {
-  count         = var.enable_vm ? 1 : 0
-  name          = var.gcs_bucket_name
-  location      = var.region
-  force_destroy = false
+  count                       = var.enable_vm ? 1 : 0
+  name                        = var.gcs_bucket_name
+  location                    = var.region
+  force_destroy               = false
   uniform_bucket_level_access = true
 
   versioning {
     enabled = true
   }
 
-  # Automatically delete backups older than 7 days
   lifecycle_rule {
     condition {
       age = 7
@@ -148,7 +142,6 @@ resource "google_storage_bucket" "backup_bucket" {
   }
 }
 
-# Allow full control of objects ONLY for this specific bucket
 resource "google_storage_bucket_iam_member" "vm_bucket_admin" {
   count  = var.enable_vm ? 1 : 0
   bucket = google_storage_bucket.backup_bucket[0].name
@@ -156,7 +149,6 @@ resource "google_storage_bucket_iam_member" "vm_bucket_admin" {
   member = "serviceAccount:${google_service_account.vm_sa[0].email}"
 }
 
-# Upload the local setup scripts to the GCS bucket
 resource "google_storage_bucket_object" "setup_scripts" {
   for_each = var.enable_vm ? fileset("${path.module}/../2-host-setup", "*") : []
   name     = "setup-scripts/${each.value}"
@@ -179,8 +171,8 @@ resource "google_monitoring_uptime_check_config" "http" {
   count        = var.enable_vm ? 1 : 0
   display_name = "Uptime check for ${var.domain_name}"
   http_check {
-    path = "/"
-    port = "443"
+    path    = "/"
+    port    = "443"
     use_ssl = true
   }
   monitored_resource {
@@ -201,17 +193,18 @@ resource "google_monitoring_alert_policy" "default" {
   conditions {
     display_name = "Uptime check failed on ${var.domain_name}"
     condition_threshold {
-      filter     = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.labels.check_id=\"${google_monitoring_uptime_check_config.http[0].uptime_check_id}\""
-      duration   = "300s"
-      comparison = "COMPARISON_GT"
+      filter          = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.labels.check_id=\"${google_monitoring_uptime_check_config.http[0].uptime_check_id}\""
+      duration        = "300s"
+      # FIXED: Alert when check_passed < 1 (i.e., 0/Fail)
+      comparison      = "COMPARISON_LT"
+      threshold_value = 1
       trigger {
         count = 1
       }
-      # FIXED: Changed from 'aggregator' to 'aggregations' (plural)
       aggregations {
-        alignment_period   = "60s"
-        cross_series_reducer = "REDUCE_COUNT_FALSE"
-        per_series_aligner = "ALIGN_NEXT_OLDER"
+        alignment_period     = "60s"
+        cross_series_reducer = "REDUCE_MEAN"
+        per_series_aligner   = "ALIGN_FRACTION_TRUE"
       }
     }
   }

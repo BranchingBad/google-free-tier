@@ -5,17 +5,24 @@ terraform {
   # }
 }
 
-# 1. Create the GCS bucket for the Terraform state by running the bootstrap configuration:
-#    cd bootstrap
-#    terraform init
-#    terraform apply
+# --- Backend Configuration Guide ---
 #
-# 2. Uncomment the backend configuration above.
+# 1. Create the State Bucket:
+#    Navigate to terraform/bootstrap and run:
+#    $ terraform init
+#    $ terraform apply
+#    (Enter your project_id when prompted)
 #
-# 3. Replace <YOUR_PROJECT_ID> with your GCP project ID.
+# 2. Configure this file:
+#    Uncomment the 'backend "gcs"' block above.
+#    Replace <YOUR_PROJECT_ID> with your actual Google Cloud Project ID.
 #
-# 4. Initialize Terraform:
-#    terraform init -reconfigure
+# 3. Initialize Terraform:
+#    Navigate back to this directory (terraform/) and run:
+#    $ terraform init -reconfigure
 #
-# 5. Apply the main configuration:
-#    terraform apply
+# 4. Apply Infrastructure:
+#    $ terraform apply
+#
+# Note: Using GCS as a backend supports state locking, which prevents
+# concurrent runs from corrupting your state file.

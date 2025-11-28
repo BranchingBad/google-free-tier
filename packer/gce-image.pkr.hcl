@@ -42,7 +42,10 @@ build {
   sources = ["source.googlecompute.gce"]
 
   provisioner "shell" {
+    # FIXED: Enforce strict error checking
+    valid_exit_codes = [0]
     inline = [
+      "set -e",
       "sudo apt-get update",
       "sudo apt-get install -y nginx"
     ]
@@ -54,17 +57,24 @@ build {
   }
 
   provisioner "shell" {
+    valid_exit_codes = [0]
     environment_vars = [
       "DEBIAN_FRONTEND=noninteractive"
     ]
     inline = [
+      "set -e",
       "sudo chmod +x /tmp/2-host-setup/*.sh",
       "sudo /tmp/2-host-setup/1-create-swap.sh",
       "sudo /tmp/2-host-setup/2-install-nginx.sh",
-      "echo 'Note: Skipping DuckDNS, SSL, and backup setup in Packer image.'",
-      "echo 'These often require live credentials and are better handled on first boot or via a different mechanism.'",
+      # Note: Skipping DuckDNS, SSL, Backup, and Security setup
+      # to keep the image generic and accessible.
       "echo 'Cleaning up temporary setup scripts...'",
       "sudo rm -rf /tmp/2-host-setup"
     ]
+  }
+
+  post-processor "manifest" {
+    output = "manifest.json"
+    strip_path = true
   }
 }
