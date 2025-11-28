@@ -138,11 +138,11 @@ main() {
 
     # --- 5. Final Instructions ---
     log_info "---------------------------------------------------------"
-    log_info "To find the public IP address for your service, run:"
+    log_info "To find the public IP address for your Ingress, run:"
     echo
-    echo "  kubectl get service hello-gke-service --watch"
+    echo "  kubectl get ingress hello-gke-ingress --watch"
     echo
-    log_info "Wait until an 'EXTERNAL-IP' is assigned. You can then access your app at http://<EXTERNAL-IP>"
+    log_info "Wait until an 'ADDRESS' is assigned. You can then access your app at https://${domain_name}"
     log_warn "To clean up all the resources created, run the following command:"
     echo
     echo "  terraform destroy -auto-approve"

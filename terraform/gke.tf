@@ -61,9 +61,31 @@ resource "kubectl_manifest" "gke_deployment" {
   ]
 }
 
+
+# Reserve a static IP address for the Ingress
+resource "google_compute_global_address" "gke_static_ip" {
+  name = "gke-static-ip"
+}
+
 resource "kubectl_manifest" "gke_service" {
   yaml_body = file("${path.module}/../3-gke-deployment/kubernetes/service.yaml")
   depends_on = [
     kubectl_manifest.gke_deployment,
+  ]
+}
+
+resource "kubectl_manifest" "managed_certificate" {
+  yaml_body = templatefile("${path.module}/../3-gke-deployment/kubernetes/managed-certificate.yaml", {
+    domain_name = var.domain_name
+  })
+  depends_on = [
+    google_container_cluster.default,
+  ]
+}
+
+resource "kubectl_manifest" "ingress" {
+  yaml_body = file("${path.module}/../3-gke-deployment/kubernetes/ingress.yaml")
+  depends_on = [
+    kubectl_manifest.gke_service,
   ]
 }
