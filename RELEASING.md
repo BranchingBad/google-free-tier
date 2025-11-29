@@ -239,6 +239,26 @@ git tag -l -n5 vX.Y.Z
 
 # Show full tag details
 git show vX.Y.Z
+
+### Step 6.5: Generate Release Archive and SHA1 Hash
+
+Create a zip archive of the current project state (excluding the `.git` directory and other temporary files) and generate its SHA1 hash. This hash can be included in the GitHub Release description for verification.
+
+```bash
+# Get the current version from the tag
+VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+
+# Create a clean archive of the repository
+git archive --format=zip --output="google-free-tier-${VERSION}.zip" HEAD
+
+# Calculate the SHA1 hash of the archive
+sha1sum "google-free-tier-${VERSION}.zip" > "google-free-tier-${VERSION}.zip.sha1"
+
+# Display the SHA1 hash
+cat "google-free-tier-${VERSION}.zip.sha1"
+```
+
+### Step 7: Push to Repository
 ```
 
 ### Step 7: Push to Repository
@@ -410,6 +430,8 @@ Update versions & CHANGELOG
 Commit: "Prepare release X.Y.Z"
     ↓
 Create tag: vX.Y.Z
+    ↓
+Generate SHA1 Hash
     ↓
 Push branch & tag
     ↓
