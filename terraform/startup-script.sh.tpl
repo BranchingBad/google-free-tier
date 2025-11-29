@@ -22,16 +22,28 @@ if [ ! -f "$SECRETS_MARKER" ]; then
     echo "Fetching secrets..."
     mkdir -p /root/.credentials
     chmod 700 /root/.credentials
-    gcloud secrets versions access latest --secret="duckdns_token" --format="value(payload.data)" | base64 --decode > /root/.credentials/duckdns_token
-    chmod 600 /root/.credentials/duckdns_token
-    gcloud secrets versions access latest --secret="email_address" --format="value(payload.data)" | base64 --decode > /root/.credentials/email_address
-    chmod 600 /root/.credentials/email_address
-    gcloud secrets versions access latest --secret="domain_name" --format="value(payload.data)" | base64 --decode > /root/.credentials/domain_name
-    chmod 600 /root/.credentials/domain_name
-    # GCS Bucket Name is now injected via Terraform template.
-    gcloud secrets versions access latest --secret="backup_dir" --format="value(payload.data)" | base64 --decode > /root/.credentials/backup_dir
-    chmod 600 /root/.credentials/backup_dir
+    
+    # Helper function to safely fetch and store a secret
+    fetch_secret() {
+        local secret_name="$1"
+        local output_file="$2"
+        
+        if ! gcloud secrets versions access latest --secret="${secret_name}" --format="value(payload.data)" | base64 --decode > "${output_file}"; then
+            echo "ERROR: Failed to fetch secret '${secret_name}'"
+            return 1
+        fi
+        chmod 600 "${output_file}"
+        echo "Successfully fetched secret: ${secret_name}"
+    }
+    
+    # Fetch all required secrets, fail if any fails
+    fetch_secret "duckdns_token" "/root/.credentials/duckdns_token" || exit 1
+    fetch_secret "email_address" "/root/.credentials/email_address" || exit 1
+    fetch_secret "domain_name" "/root/.credentials/domain_name" || exit 1
+    fetch_secret "backup_dir" "/root/.credentials/backup_dir" || exit 1
+    
     touch "$SECRETS_MARKER"
+    echo "All secrets fetched successfully."
 else
     echo "Secrets already fetched. Skipping."
 fi

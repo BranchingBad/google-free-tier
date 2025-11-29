@@ -123,7 +123,12 @@ check_disk_space() {
     
     # Get available space in MB
     local available_mb
-    available_mb=$(df "${target_path}" | awk 'NR==2 {print int($4)}')
+    available_mb=$(df "${target_path}" | awk 'NR==2 {print int($4)}') || return 1
+    
+    if ! [[ "${available_mb}" =~ ^[0-9]+$ ]]; then
+        log_error "Failed to parse available disk space."
+        return 1
+    fi
     
     if [[ "${available_mb}" -lt "${min_space_mb}" ]]; then
         log_error "Insufficient disk space in ${target_path}. Required: ${min_space_mb}MB, Available: ${available_mb}MB"

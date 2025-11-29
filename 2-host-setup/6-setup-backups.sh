@@ -10,6 +10,7 @@ source "${SCRIPT_DIR}/common.sh"
 # --- Constants ---
 BACKUP_SCRIPT_PATH="/usr/local/bin/backup-to-gcs.sh"
 BACKUP_LOG_DIR="/var/log"
+REGION="${REGION:-us-central1}"
 
 # --- Main Logic ---
 main() {

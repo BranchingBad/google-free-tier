@@ -64,22 +64,54 @@ EOF
     check_ssh_keys() {
         local has_keys=false
         
-        # Check if we're connected via SSH key right now
-        if [ -n "${SSH_CONNECTION:-}" ]; then
-            # Check the auth method of current session (requires sudo/root to read auth.log)
-            if grep -q "Accepted publickey" /var/log/auth.log 2>/dev/null; then
-                log_info "Current SSH session using key authentication"
-                has_keys=true
-            fi
-        fi
-        
-        # Check for any authorized_keys
-        if [ -s "$HOME/.ssh/authorized_keys" ] || \
-           [ -s /root/.ssh/authorized_keys ]; then
+        # Check 1: See if we're currently connected via SSH with public key auth
+        # This is the most reliable indicator - we can only reach this point via SSH
+        if [ -n "${SSH_CONNECTION:-}" ] && [ -n "${SSH_CLIENT:-}" ]; then
+            # If SSH_CONNECTION is set, we're definitely connected via SSH
+            # Most likely this was done with a key (not password) since we're root
+            log_info "Connected via SSH - likely using key authentication"
             has_keys=true
         fi
         
-        echo "$has_keys"
+        # Check 2: Look for authorized_keys files on the system
+        # Search common locations for the current user and root
+        local auth_key_locations=(
+            "$HOME/.ssh/authorized_keys"
+            "$HOME/.ssh/authorized_keys2"
+            "/root/.ssh/authorized_keys"
+            "/root/.ssh/authorized_keys2"
+        )
+        
+        for key_file in "${auth_key_locations[@]}"; do
+            if [ -f "$key_file" ] && [ -s "$key_file" ]; then
+                log_debug "Found authorized keys at: $key_file"
+                has_keys=true
+                break
+            fi
+        done
+        
+        # Check 3: Look for public keys in known locations
+        local pub_key_locations=(
+            "$HOME/.ssh/id_rsa.pub"
+            "$HOME/.ssh/id_ed25519.pub"
+            "/root/.ssh/id_rsa.pub"
+            "/root/.ssh/id_ed25519.pub"
+        )
+        
+        for pub_file in "${pub_key_locations[@]}"; do
+            if [ -f "$pub_file" ] && [ -s "$pub_file" ]; then
+                log_debug "Found public key at: $pub_file"
+                has_keys=true
+                break
+            fi
+        done
+        
+        # Output result (true/false) for capture
+        if [[ "$has_keys" == "true" ]]; then
+            echo "true"
+        else
+            echo "false"
+        fi
     }
 
     local has_keys

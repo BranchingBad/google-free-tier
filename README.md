@@ -405,7 +405,25 @@ Deploy a Node.js application to Google Cloud Run (Free Tier eligible). The updat
 ### Prerequisites
 - Docker installed on your local machine
 - Artifact Registry created (Phase 1, Step 5)
-- Firestore Database: If not created via Terraform, ensure you manually create a Firestore database in Native mode (see [Troubleshooting - Firestore Errors](#12-firestore-errors)).
+- **Firestore Database (REQUIRED):** Cloud Run and GKE applications require a Firestore database for the visitor counter feature.
+  
+  **Important:** Firestore is NOT created by default. You have two options:
+  
+  **Option 1: Automatic Creation (Recommended)**
+  - Set `enable_firestore_database = true` in your `terraform.tfvars` before running Terraform
+  - Terraform will create the database during initial `terraform apply`
+  
+  **Option 2: Manual Creation**
+  - Skip Terraform creation (default: `enable_firestore_database = false`)
+  - Manually create in GCP Console: Firestore > Create Database > Native Mode > Select region
+  - Ensure you set the location to match your other resources
+  
+  **Verify your setup:**
+  ```bash
+  gcloud firestore databases list
+  ```
+  
+  If no database is listed or the app crashes with "No default database found", see [Troubleshooting - Firestore Errors](#12-firestore-errors).
 
 ### Deploy to Cloud Run
 ```bash
@@ -950,16 +968,35 @@ Note: If you use `core.hooksPath`, ensure the scripts inside `.git-hooks` are ex
 **12. Firestore Errors**
 - **Problem:** App crashes with "Error: No default database found", "Permission denied", or "Quota exceeded" errors.
 - **Solution:**
-  - **"Database not found"**:
-    - Ensure Firestore database was created. Terraform *does not* create this by default; you must either create it manually in Native mode or set `enable_firestore_database = true` in your `terraform.tfvars`.
-    - Check: `gcloud firestore databases list`
+  - **"Database not found" or "No default database found"**:
+    - Firestore is NOT created automatically. You must explicitly enable it.
+    - Check if a database exists: `gcloud firestore databases list`
+    - **If no database exists:**
+      - Option A: Set `enable_firestore_database = true` in `terraform.tfvars`, then run `terraform apply`
+      - Option B: Create manually in GCP Console: Firestore > Create Database > Native Mode > Select appropriate region
+      - Ensure the database is in the same region as your other resources
+    - Restart your application after creating the database (Cloud Run: redeploy, GKE: restart pod)
   - **"Permission denied"**:
-    - Ensure the service account running your application (e.g., Cloud Run, GKE pod) has the `Cloud Datastore User` role (`roles/datastore.user`) on the project.
-    - Check service account IAM bindings in GCP Console.
+    - The service account running your application lacks Firestore permissions
+    - Ensure the service account has the `roles/datastore.user` role (Cloud Datastore User)
+    - For Cloud Run: Check the compute service account permissions in IAM Console
+    - For GKE: Verify the Workload Identity service account has required permissions
+    - To grant permissions:
+      ```bash
+      # Example for Cloud Run (replace PROJECT_ID)
+      gcloud projects add-iam-policy-binding PROJECT_ID \
+        --member=serviceAccount:YOUR_SERVICE_ACCOUNT@appspot.gserviceaccount.com \
+        --role=roles/datastore.user
+      ```
   - **"Quota exceeded"**:
-    - Review your Firestore usage in the GCP Console.
-    - Check for sudden spikes in reads/writes.
-    - Consider upgrading your Firestore billing plan or optimizing database operations.
+    - You've exceeded Firestore's free tier limits (1GB storage, 50,000 reads/day, 20,000 writes/day)
+    - Review your Firestore usage in GCP Console: Firestore > Usage tab
+    - Check for sudden spikes in reads/writes (possible infinite loops or high traffic)
+    - Solutions:
+      - Optimize database queries to reduce unnecessary reads
+      - Add caching to reduce repeated reads
+      - Consider upgrading to paid plan if expected traffic exceeds free tier
+      - Set up budget alerts to monitor costs
 
 ### Getting Help
 
