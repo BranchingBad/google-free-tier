@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
 WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json
-COPY package*.json ./
+COPY package.json ./
 
 # Install app dependencies
 # Use 'npm ci' for reproducible builds.
