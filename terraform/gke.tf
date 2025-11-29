@@ -16,8 +16,6 @@ resource "google_container_cluster" "default" {
   enable_autopilot = true
   network          = "default"
   subnetwork       = "default"
-  
-  deletion_protection = false
 
   depends_on = [
     google_project_service.gke_apis,

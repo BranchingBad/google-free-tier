@@ -64,10 +64,15 @@ resource "google_project_service" "firestore" {
   disable_on_destroy = false
 }
 
-data "google_firestore_database" "database" {
-  count    = var.enable_firestore_database ? 1 : 0 # Use 1 if enabled, 0 otherwise, to reference an existing DB
-  project  = var.project_id
-  database = "(default)"
+# Reference the default Firestore database if enabled
+resource "google_firestore_database" "database" {
+  count       = var.enable_firestore_database ? 1 : 0
+  project     = var.project_id
+  name        = "(default)"
+  location_id = var.region
+  type        = "FIRESTORE_NATIVE"
+
+  depends_on = [google_project_service.firestore]
 }
 
 # --- Service Account & IAM ---
@@ -225,7 +230,7 @@ resource "google_storage_bucket_object" "setup_scripts_tarball" {
   source = data.archive_file.setup_scripts_archive.output_path
   bucket = google_storage_bucket.backup_bucket[0].name
   # This content hash will be used by the startup script for integrity check
-  content_md5 = data.archive_file.setup_scripts_archive.output_md5
+  md5hash = data.archive_file.setup_scripts_archive.output_md5
 }
 
 # --- Static Assets Bucket (NEW) ---
@@ -294,8 +299,10 @@ resource "google_monitoring_notification_channel" "email" {
 }
 
 resource "google_monitoring_uptime_check_config" "http" {
-  count        = var.enable_vm ? 1 : 0
-  display_name = "Uptime check for ${var.domain_name}"
+  count           = var.enable_vm ? 1 : 0
+  display_name    = "Uptime check for ${var.domain_name}"
+  timeout         = "10s"
+  period          = "60s"
   http_check {
     path    = "/"
     port    = "443"
