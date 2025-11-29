@@ -130,8 +130,7 @@ resource "google_compute_instance" "default" {
   tags = ["http-server", "https-server"]
 
   metadata_startup_script = templatefile("${path.module}/startup-script.sh.tpl", {
-    gcs_bucket_name         = google_storage_bucket.backup_bucket[0].name,
-    setup_scripts_tarball_md5 = google_storage_bucket_object.setup_scripts_tarball[0].content_md5
+    gcs_bucket_name         = google_storage_bucket.backup_bucket[0].name
   })
 
   service_account {
@@ -144,7 +143,7 @@ resource "google_compute_instance" "default" {
   }
 
   depends_on = [
-    google_storage_bucket_object.setup_scripts
+    google_storage_bucket_object.setup_scripts_tarball
   ]
 }
 

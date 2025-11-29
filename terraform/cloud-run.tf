@@ -103,7 +103,7 @@ resource "google_cloud_run_v2_service" "default" {
 resource "google_cloud_run_service_iam_binding" "default" {
   count    = var.enable_cloud_run ? 1 : 0
   location = google_cloud_run_v2_service.default[0].location
-  name     = google_cloud_run_v2_service.default[0].name
+  service  = google_cloud_run_v2_service.default[0].name
   role     = "roles/run.invoker"
   members  = ["allUsers"]
 }
