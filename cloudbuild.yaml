@@ -41,9 +41,8 @@ steps:
   secretEnv: ['TF_VAR_tf_state_bucket']
   args:
     - '-c'
-    # FIXED: Use $$ to escape the variable for Cloud Build substitution
-    - 'echo "Initializing with bucket: $$TF_VAR_tf_state_bucket" && terraform init -backend-config="bucket=$$TF_VAR_tf_state_bucket"'
-
+    # Use Cloud Build's native substitution for secret environment variables
+    - 'echo "Initializing with bucket: ${TF_VAR_tf_state_bucket}" && terraform init -backend-config="bucket=${TF_VAR_tf_state_bucket}"'
 # 6. Apply Terraform
 - name: 'hashicorp/terraform:1.8.4'
   entrypoint: 'sh'

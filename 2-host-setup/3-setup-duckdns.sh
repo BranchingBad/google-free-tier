@@ -30,7 +30,6 @@ main() {
     log_info "--- Phase 3: Setting up DuckDNS ---"
 
     # Support both Env Vars and CLI Args
-    # FIXED: Removed circular reference in TOKEN assignment
     DOMAIN="${1:-${DOMAIN:-}}"
     TOKEN="${2:-${DUCKDNS_TOKEN:-}}"
 

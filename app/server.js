@@ -28,6 +28,14 @@ app.get('/', async (req, res) => {
     }
   } catch (err) {
     console.error('Firestore error:', err);
+    return res.status(500).send(`
+      <html>
+        <body>
+          <h1>Service Temporarily Unavailable</h1>
+          <p>Unable to connect to database. Please try again later.</p>
+        </body>
+      </html>
+    `);
   }
 
   const html = `
@@ -63,7 +71,7 @@ const gracefulShutdown = () => {
   setTimeout(() => {
     console.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
-  }, 10000);
+  }, 5000); // Reduce to 5000ms for faster restarts.
 };
 
 process.on('SIGTERM', gracefulShutdown);

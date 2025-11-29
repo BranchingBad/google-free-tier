@@ -74,7 +74,15 @@ variable "enable_cloud_run_domain_mapping" {
 }
 
 variable "enable_gke" {
-  description = "Enable the GKE cluster (WARNING: Incurs compute costs)."
+  description = <<EOT
+    Enable the GKE cluster.
+    ⚠️ WARNING: GKE Autopilot incurs compute costs:
+    - Minimum: ~$20-30/month for 1 replica with minimal resources
+    - Cost is for vCPU (250m) and Memory (512Mi) usage
+    - Scaling up will significantly increase costs
+    - Not part of Always Free tier
+    - Management fee is waived, but compute resources are billed
+  EOT
   type        = bool
   default     = false
 }

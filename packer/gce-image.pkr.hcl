@@ -45,7 +45,7 @@ build {
     # FIXED: Enforce strict error checking
     valid_exit_codes = [0]
     inline = [
-      "set -e",
+      "set -euxo pipefail",  # Add -x for debugging
       "sudo apt-get update",
       "sudo apt-get install -y nginx"
     ]
@@ -62,7 +62,7 @@ build {
       "DEBIAN_FRONTEND=noninteractive"
     ]
     inline = [
-      "set -e",
+      "set -euxo pipefail",  # Add -x for debugging
       "sudo chmod +x /tmp/2-host-setup/*.sh",
       "sudo /tmp/2-host-setup/1-create-swap.sh",
       "sudo /tmp/2-host-setup/2-install-nginx.sh",

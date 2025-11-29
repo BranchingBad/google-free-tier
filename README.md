@@ -60,6 +60,10 @@ Before starting, ensure you have the following installed on your **local machine
 - **GKE Autopilot:** While there's no cluster management fee, you pay for the compute resources (vCPU/RAM) your pods use (~$20-30/month for a basic deployment)
 - **Cloud Storage:** Storage beyond 5GB per month
 - **Network Egress:** Traffic beyond 1GB per month from North America
+⚠️ **BANDWIDTH WARNING:** Free tier includes only 1GB/month network egress.
+- Each page visit with images could use 1-5MB
+- 1GB = ~200-1000 page views depending on content
+- Exceeding this limit will incur charges (~$0.12/GB)
 - **Cloud Functions:** Invocations beyond free tier limits (used by the Cost Killer function)
 
 **Cost Optimization Tips:**
@@ -115,6 +119,13 @@ chmod +x 1-gcp-setup/*.sh 2-host-setup/*.sh 3-cloud-run-deployment/*.sh 3-gke-de
 Run these commands from your **local machine** to prepare your GCP environment.
 
 ### 1. Create the VM Instance 💻
+
+⚠️ **CRITICAL:** The free tier e2-micro VM is ONLY available in these regions:
+- us-west1 (Oregon)
+- us-central1 (Iowa) ✅ Used by default
+- us-east1 (South Carolina)
+
+Using any other region will incur charges!
 
 Creates an `e2-micro` instance running Debian 12.
 

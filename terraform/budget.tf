@@ -71,12 +71,25 @@ resource "google_storage_bucket_object" "cost_killer_zip" {
   source = data.archive_file.cost_killer_zip.output_path
 }
 
+resource "google_project_service" "appengine_api" {
+  service            = "appengine.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Ensure App Engine app exists
+resource "google_app_engine_application" "app" {
+  count       = var.enable_vm ? 1 : 0
+  location_id = var.region
+  depends_on  = [google_project_service.appengine_api]
+}
+
 # FIXED: Create IAM binding BEFORE the function to avoid race conditions
 resource "google_project_iam_member" "cost_killer_sa_compute" {
-  count   = var.enable_vm ? 1 : 0
-  project = var.project_id
-  role    = "roles/compute.instanceAdmin.v1"
-  member  = "serviceAccount:${var.project_id}@appspot.gserviceaccount.com"
+  count      = var.enable_vm ? 1 : 0
+  project    = var.project_id
+  role       = "roles/compute.instanceAdmin.v1"
+  member     = "serviceAccount:${var.project_id}@appspot.gserviceaccount.com"
+  depends_on = [google_app_engine_application.app]
 }
 
 resource "google_cloudfunctions_function" "cost_killer" {
