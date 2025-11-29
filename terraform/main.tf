@@ -157,6 +157,7 @@ resource "google_storage_bucket_object" "setup_scripts" {
 # --- Static Assets Bucket (NEW) ---
 
 resource "google_storage_bucket" "assets_bucket" {
+  count                       = var.assets_bucket_name != "" ? 1 : 0
   name                        = var.assets_bucket_name
   location                    = var.region
   uniform_bucket_level_access = true
@@ -172,17 +173,19 @@ resource "google_storage_bucket" "assets_bucket" {
 
 # Make the assets bucket public
 resource "google_storage_bucket_iam_member" "assets_public_read" {
-  bucket = google_storage_bucket.assets_bucket.name
+  count  = var.assets_bucket_name != "" ? 1 : 0
+  bucket = google_storage_bucket.assets_bucket[0].name
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
 
 # Upload a demo asset
 resource "google_storage_bucket_object" "demo_asset" {
+  count        = var.assets_bucket_name != "" ? 1 : 0
   name         = "message.txt"
   content      = "This is a static asset served from Google Cloud Storage!"
   content_type = "text/plain"
-  bucket       = google_storage_bucket.assets_bucket.name
+  bucket       = google_storage_bucket.assets_bucket[0].name
 }
 
 # --- Monitoring (VM Specific) ---

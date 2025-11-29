@@ -28,6 +28,7 @@ variable "tf_state_bucket" {
 variable "assets_bucket_name" {
   description = "The name of the GCS bucket for public static assets."
   type        = string
+  default     = ""
 }
 
 variable "image_tag" {
@@ -132,6 +133,12 @@ variable "budget_amount" {
   description = "The amount to set the budget alert at (e.g. 1 USD)."
   type        = string
   default     = "1"
+}
+
+variable "cost_killer_shutdown_threshold" {
+  description = "The budget threshold at which to trigger the VM shutdown (e.g., 1.0 for 100%)."
+  type        = number
+  default     = 1.0
 }
 
 variable "gke_cluster_name" {

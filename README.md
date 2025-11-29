@@ -200,6 +200,16 @@ This creates a Docker repository named `gke-apps` in Artifact Registry where you
 gcloud artifacts repositories list --location=us-central1
 ```
 
+### 6. Create Firestore Database (Native Mode)
+
+The containerized applications (Cloud Run, GKE) use Firestore to persist data.
+
+```bash
+gcloud firestore databases create --location=nam5 --type=firestore-native
+```
+
+**Note:** `nam5` is the multi-region for North America. Choose a location that is close to your users. You can only have one Firestore database per project.
+
 ---
 
 ## Phase 2: ⚙️ Host VM Setup (Manual)
@@ -355,7 +365,7 @@ Deploy a Node.js application to Google Cloud Run (Free Tier eligible). The updat
 ### Prerequisites
 - Docker installed on your local machine
 - Artifact Registry created (Phase 1, Step 5)
-- Firestore Database: Ensure you have created a default Firestore database (Native mode recommended) in your project via the GCP Console.
+- Firestore Database: Created in Phase 1, Step 6.
 
 ### Deploy to Cloud Run
 ```bash
@@ -399,7 +409,7 @@ Deploy the same Firestore-connected Node.js application to GKE Autopilot.
 - Docker installed
 - Artifact Registry created (Phase 1, Step 5)
 - Terraform installed (the script uses Terraform for cluster provisioning)
-- Firestore Database: Default database created in GCP Console.
+- Firestore Database: Created in Phase 1, Step 6.
 
 ### Deploy to GKE
 
@@ -491,6 +501,7 @@ enable_gke                      = false  # Deploy GKE cluster (costs $20-30/mont
 
 # Budget Configuration
 budget_amount = "5"  # Monthly budget in USD
+cost_killer_shutdown_threshold = 1.0 # Shutdown VM at 100% of budget
 ```
 
 **Security Note:** Never commit `terraform.tfvars` to version control. It's already in `.gitignore`.
@@ -545,13 +556,14 @@ The Terraform configuration includes a "Cost Killer" Cloud Function (`terraform/
 **How it works:**
 - Monitors your GCP billing via Pub/Sub notifications
 - Triggers when budget threshold is reached (default: 50%, 90%, 100%)
-- At 100% threshold, automatically stops the VM to prevent overages
+- At a configurable threshold (default: 100%), automatically stops the VM to prevent overages
 - Sends email notification via the configured alert channel
 
 **Configuration:**
 ```hcl
 # In terraform/terraform.tfvars
 budget_amount = "5"  # Monthly budget in USD (default: $5)
+cost_killer_shutdown_threshold = 1.0 # Shutdown VM at 100% of budget
 ```
 
 **Limitations:**

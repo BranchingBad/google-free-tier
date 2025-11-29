@@ -30,8 +30,12 @@ exports.stopBilling = async (message, context) => {
   
   console.log(`Budget Status: $${costAmount} / $${budgetAmount} (Ratio: ${costRatio.toFixed(2)})`);
 
-  // Check if we hit 100% (1.0) of the budget
-  if (costRatio >= 1.0) {
+  const shutdownThreshold = parseFloat(process.env.SHUTDOWN_THRESHOLD) || 1.0;
+
+  console.log(`Shutdown threshold is set to: ${shutdownThreshold.toFixed(2)}`);
+
+  // Check if we hit the shutdown threshold
+  if (costRatio >= shutdownThreshold) {
     console.warn('🚨 Budget limit reached or exceeded! Initiating VM shutdown protocol...');
 
     const projectId = process.env.PROJECT_ID;

@@ -10,7 +10,7 @@ spec:
   template:
     metadata:
       labels:
-app: hello-app
+        app: hello-gke
     spec:
       containers:
       - name: hello-app-container

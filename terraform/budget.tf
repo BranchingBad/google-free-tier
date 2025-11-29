@@ -96,9 +96,10 @@ resource "google_cloudfunctions_function" "cost_killer" {
   }
 
   environment_variables = {
-    PROJECT_ID    = var.project_id
-    ZONE          = var.zone
-    INSTANCE_NAME = google_compute_instance.default[0].name
+    PROJECT_ID         = var.project_id
+    ZONE               = var.zone
+    INSTANCE_NAME      = google_compute_instance.default[0].name
+    SHUTDOWN_THRESHOLD = var.cost_killer_shutdown_threshold
   }
 
   # Ensure APIs and IAM permissions are ready before creating the function

@@ -6,7 +6,7 @@ spec:
   # This makes the service publicly accessible via a GCP Load Balancer
   type: NodePort
   selector:
-    app: hello-app # This must match the 'app' label in the Deployment
+    app: hello-gke # This must match the 'app' label in the Deployment
   ports:
     - protocol: TCP
       port: 80 # The port the public Load Balancer listens on
