@@ -10,10 +10,10 @@ spec:
   template:
     metadata:
       labels:
-        app: hello-gke
+app: hello-app
     spec:
       containers:
-      - name: hello-gke-container
+      - name: hello-app-container
         # IMPORTANT: You will replace this with your own image path
         image: gcr.io/google-samples/hello-app:1.0
         ports:

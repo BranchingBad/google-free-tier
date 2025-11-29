@@ -32,9 +32,9 @@ app.get('/', async (req, res) => {
 
   const html = `
     <html>
-      <head><title>GKE App</title></head>
+      <head><title>Containerized App</title></head>
       <body style="font-family: sans-serif; text-align: center; padding: 2rem;">
-        <h1>Hello from Google Kubernetes Engine!</h1>
+        <h1>Hello from a containerized application!</h1>
         <p>Visitor Count: <strong>${count}</strong></p>
         <hr/>
         <p>

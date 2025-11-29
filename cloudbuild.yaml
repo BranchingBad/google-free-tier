@@ -22,29 +22,17 @@ steps:
       terraform init -backend=false
       terraform validate
 
-# 3a. Build Docker (Cloud Run)
+# 3. Build Docker
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'build'
     - '-t'
-    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
-    - './3-cloud-run-deployment/app'
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-app:${SHORT_SHA}'
+    - './app'
 
-# 3b. Build Docker (GKE)
+# 4. Push Docker
 - name: 'gcr.io/cloud-builders/docker'
-  args:
-    - 'build'
-    - '-t'
-    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
-    - './3-gke-deployment/app'
-
-# 4a. Push (Cloud Run)
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}']
-
-# 4b. Push (GKE)
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}']
+  args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-app:${SHORT_SHA}']
 
 # 5. Initialize Terraform
 - name: 'hashicorp/terraform:1.8.4'
@@ -77,13 +65,11 @@ steps:
         -var="image_tag=${SHORT_SHA}"
 
 images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}'
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-gke:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hello-app:${SHORT_SHA}'
 
 substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'gke-apps'
-  _IMAGE_NAME: 'hello-cloud-run'
 
 availableSecrets:
   secretManager:

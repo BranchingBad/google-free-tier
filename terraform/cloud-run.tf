@@ -43,7 +43,7 @@ resource "google_cloud_run_v2_service" "default" {
     service_account = google_service_account.cloud_run_sa[0].email
 
     containers {
-      image = "${var.artifact_registry_region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-cloud-run:${var.image_tag}"
+      image = "${var.artifact_registry_region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-app:${var.image_tag}"
       
       # Inject the version/tag as an environment variable
       env {

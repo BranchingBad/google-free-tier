@@ -40,7 +40,7 @@ provider "kubectl" {
 }
 
 locals {
-  image_url = "${var.artifact_registry_region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-gke:${var.image_tag}"
+  image_url = "${var.artifact_registry_region}-docker.pkg.dev/${var.project_id}/gke-apps/hello-app:${var.image_tag}"
 
   # Pass variables to the deployment template
   deployment_yaml = templatefile("${path.module}/../3-gke-deployment/kubernetes/deployment.yaml.tpl", {
