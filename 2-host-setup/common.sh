@@ -143,7 +143,8 @@ backup_file() {
         return 0
     fi
     
-    local backup_file="${backup_dir}/$(basename "${file}").bak.$(date -u +%s)"
+    local backup_file
+    backup_file="${backup_dir}/$(basename "${file}").bak.$(date -u +%s)"
     cp "${file}" "${backup_file}"
     log_success "Backed up '${file}' to '${backup_file}'"
 }

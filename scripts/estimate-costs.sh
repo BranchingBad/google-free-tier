@@ -23,11 +23,11 @@ echo "- e2-micro VM: $0 (Always Free)"
 echo "- 30GB Storage: $0 (Always Free)"
 echo "- Network Egress (>1GB): $0.12/GB"
 echo "- Cloud Run (after free tier): Per request, GB-second, egress (not calculated here)."
-echo "- GKE Autopilot (if enabled): $20-30/month minimum (compute resources are billed, not calculated here)."
+echo "- GKE Autopilot (if enabled): \$20-30/month minimum (compute resources are billed, not calculated here)."
 echo "- Cloud Functions (after free tier): Per invocation, GB-second, network (not calculated here)."
 echo ""
 
-read -p "Expected monthly network egress (GB, excluding first 1GB free): " egress
+read -r -p "Expected monthly network egress (GB, excluding first 1GB free): " egress
 if [[ -n "$egress" && "$egress" =~ ^[0-9]+$ && "$egress" -gt 0 ]]; then
   cost=$(echo "scale=2; $egress * 0.12" | bc)
   echo "Estimated network egress cost: \$$cost"
@@ -38,7 +38,7 @@ echo ""
 
 # Cloud Functions
 echo ""
-read -p "Estimated monthly Cloud Functions invocations (beyond 2M free tier): " cf_invocations
+read -r -p "Estimated monthly Cloud Functions invocations (beyond 2M free tier): " cf_invocations
 if [[ -n "$cf_invocations" && "$cf_invocations" =~ ^[0-9]+$ && "$cf_invocations" -gt 0 ]]; then
   # Pricing example: $0.40 per million invocations
   cf_cost=$(echo "scale=2; $cf_invocations / 1000000 * 0.40" | bc)
@@ -49,7 +49,7 @@ fi
 
 # Pub/Sub Messages
 echo ""
-read -p "Estimated monthly Pub/Sub messages (beyond 10GB/month free tier, enter in millions): " ps_messages_million
+read -r -p "Estimated monthly Pub/Sub messages (beyond 10GB/month free tier, enter in millions): " ps_messages_million
 if [[ -n "$ps_messages_million" && "$ps_messages_million" =~ ^[0-9]+(\.[0-9]+)?$ && $(echo "$ps_messages_million > 0" | bc -l) -eq 1 ]]; then
   # Pricing example: $40 per TB ($0.04 per GB), assume average message size for estimation
   # For simplicity, we'll ask for millions of messages and use a rough estimate of ~1KB per message for 1GB/million messages
@@ -62,7 +62,7 @@ fi
 
 # Cloud Logging
 echo ""
-read -p "Estimated monthly Cloud Logging volume (GB ingested beyond 50GB free tier): " cl_logging_gb
+read -r -p "Estimated monthly Cloud Logging volume (GB ingested beyond 50GB free tier): " cl_logging_gb
 if [[ -n "$cl_logging_gb" && "$cl_logging_gb" =~ ^[0-9]+(\.[0-9]+)?$ && $(echo "$cl_logging_gb > 0" | bc -l) -eq 1 ]]; then
   # Pricing example: $0.50 per GB ingested
   cl_cost=$(echo "scale=2; $cl_logging_gb * 0.50" | bc)
@@ -76,7 +76,7 @@ echo ""
 echo "## Current Month's Spending (Requires Billing Account ID)"
 
 BILLING_ACCOUNT_ID=""
-read -p "Enter your Google Cloud Billing Account ID (e.g., XXXXXX-XXXXXX-XXXXXX), or leave empty to skip: " BILLING_ACCOUNT_ID
+read -r -p "Enter your Google Cloud Billing Account ID (e.g., XXXXXX-XXXXXX-XXXXXX), or leave empty to skip: " BILLING_ACCOUNT_ID
 
 if [[ -n "$BILLING_ACCOUNT_ID" ]]; then
   echo "Fetching current month's spending for billing account: $BILLING_ACCOUNT_ID..."

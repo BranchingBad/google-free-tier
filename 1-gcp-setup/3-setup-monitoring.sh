@@ -40,13 +40,13 @@ main() {
     log_info "Operating in project: ${project_id}"
 
     local email
-    read -p "Enter the email address for alert notifications: " email
+    read -r -p "Enter the email address for alert notifications: " email
 
     local display_name
-    read -p "Enter a display name for this notification channel (e.g., 'Admin On-Call'): " display_name
+    read -r -p "Enter a display name for this notification channel (e.g., 'Admin On-Call'): " display_name
 
     local domain
-    read -p "Enter the full domain to monitor (e.g., 'my.duckdns.org'): " domain
+    read -r -p "Enter the full domain to monitor (e.g., 'my.duckdns.org'): " domain
     
     log_info "Creating email notification channel for ${email}..."
     local channel_name
@@ -65,7 +65,7 @@ main() {
     
     log_warn "A verification email has been sent to ${email}."
     log_warn "You must click the link in the email before you can receive alerts."
-    read -p "Press [Enter] after you have clicked the verification link..."
+    read -r -p "Press [Enter] after you have clicked the verification link..."
 
     log_info "Creating HTTP uptime check for https://${domain}..."
     local uptime_check_id

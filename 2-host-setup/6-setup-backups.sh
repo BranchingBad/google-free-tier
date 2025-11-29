@@ -16,8 +16,10 @@ main() {
     ensure_root || exit 1
 
     local CREDENTIALS_DIR="/root/.credentials"
-    local BUCKET_NAME="$(cat ${CREDENTIALS_DIR}/gcs_bucket_name)"
-    local BACKUP_DIR="$(cat ${CREDENTIALS_DIR}/backup_dir)"
+    local BUCKET_NAME
+    BUCKET_NAME="$(cat "${CREDENTIALS_DIR}/gcs_bucket_name")"
+    local BACKUP_DIR
+    BACKUP_DIR="$(cat "${CREDENTIALS_DIR}/backup_dir")"
 
     # Validate inputs
     if [[ -z "${BUCKET_NAME}" ]]; then

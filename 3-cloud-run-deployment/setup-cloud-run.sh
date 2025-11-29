@@ -56,7 +56,7 @@ main() {
     echo "  # 3. Push the image to Artifact Registry:"
     echo "  docker push \"${full_image_path}\""
     echo
-    read -p "Press [Enter] after you have successfully pushed the image..."
+    read -r -p "Press [Enter] after you have successfully pushed the image..."
 
     # --- 3. Deploy to Cloud Run ---
     log_info "Deploying to Cloud Run..."

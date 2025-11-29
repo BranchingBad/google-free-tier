@@ -25,6 +25,7 @@ check_command docker
 check_command terraform
 
 # --- Main Logic ---
+
 main() {
     log_info "--- Phase 3: GKE Autopilot Deployment ---"
 
@@ -58,7 +59,7 @@ main() {
     echo "  # 3. Push the image to Artifact Registry:"
     echo "  docker push \"${full_image_path}\""
     echo
-    read -p "Press [Enter] after you have successfully pushed the image..."
+    read -r -p "Press [Enter] after you have successfully pushed the image..."
 
     # --- 3. Retrieve Infrastructure Config ---
     log_info "Fetching configuration to prevent overwriting VM settings..."
@@ -75,7 +76,7 @@ main() {
         else
             # 2. Fallback to Prompt
             log_warn "Secret '$name' not found in Secret Manager."
-            read -p "Please enter your $description: " val
+            read -r -p "Please enter your $description: " val
         fi
         
         if [[ -z "$val" ]]; then
@@ -148,6 +149,7 @@ main() {
     echo
     echo "  terraform destroy -auto-approve"
     echo
+
 }
 
-main
+main "$@"

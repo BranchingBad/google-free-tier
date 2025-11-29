@@ -10,7 +10,7 @@ create_secret() {
     local validation_regex="${3:-}"
     local secret_value
 
-    read -sp "$prompt_text: " secret_value
+    read -r -sp "$prompt_text: " secret_value
     echo
     
     if [[ -z "$secret_value" ]]; then
@@ -37,8 +37,8 @@ create_secret "backup_dir" "Enter the directory to back up (e.g., /var/www/html)
 create_secret "billing_account_id" "Enter your Billing Account ID (e.g., XXXXXX-XXXXXX-XXXXXX)" "^[a-zA-Z0-9]{6}-[a-zA-Z0-9]{6}-[a-zA-Z0-9]{6}$"
 
 # Grant Cloud Build permission to access these secrets
-PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
-gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+PROJECT_NUMBER="$(gcloud projects describe "$(gcloud config get-value project)" --format="value(projectNumber)")"
+gcloud projects add-iam-policy-binding "$(gcloud config get-value project)" \
     --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
 

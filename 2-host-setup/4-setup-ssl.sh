@@ -163,7 +163,7 @@ EOF
           break # Success
       fi
 
-      if [ $attempt -lt $MAX_ATTEMPTS ]; then
+      if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
         BACKOFF=$((30 * attempt))
         log_warn "Attempt $attempt failed. Retrying in ${BACKOFF}s..."
         sleep "$BACKOFF"
