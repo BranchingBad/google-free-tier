@@ -26,7 +26,7 @@ if [ ! -f "$NVMRC_FILE" ]; then
     exit 1
 fi
 
-NVMRC_VERSION=$(cat "$NVMRC_FILE" | grep -oE '^[0-9]+' | head -1)
+NVMRC_VERSION=$(grep -oE '^[0-9]+' "$NVMRC_FILE" | head -1)
 echo "  .nvmrc: $NVMRC_VERSION"
 
 if [ ! -f "$DOCKERFILE" ]; then
