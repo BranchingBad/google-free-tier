@@ -46,7 +46,7 @@ locals {
   deployment_yaml = templatefile("${path.module}/../3-gke-deployment/kubernetes/deployment.yaml.tpl", {
     image      = local.image_url
     project_id = var.project_id
-    assets_url = "https://storage.googleapis.com/${google_storage_bucket.assets_bucket.name}"
+    assets_url = var.assets_bucket_name != "" ? "https://storage.googleapis.com/${google_storage_bucket.assets_bucket[0].name}" : ""
   })
 }
 

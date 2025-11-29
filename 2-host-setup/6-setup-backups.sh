@@ -43,14 +43,14 @@ main() {
     if ! command -v gsutil &> /dev/null; then
         log_warn "gsutil command not found. Installing Google Cloud SDK..."
         wait_for_apt
-        apt-get update -qq || {
+        if ! apt-get update -qq; then
             log_error "Failed to update package lists."
             exit 1
-        }
-        apt-get install -y -qq google-cloud-sdk || {
+        fi
+        if ! apt-get install -y -qq google-cloud-sdk; then
             log_error "Failed to install Google Cloud SDK."
             exit 1
-        }
+        fi
         log_success "Google Cloud SDK installed."
     else
         log_success "gsutil is available."

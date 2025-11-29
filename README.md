@@ -204,9 +204,16 @@ gcloud artifacts repositories list --location=us-central1
 
 The containerized applications (Cloud Run, GKE) use Firestore to persist data.
 
+**Important:** Choose **Native Mode**, not Datastore Mode. This decision is permanent for the project.
+
 ```bash
 gcloud firestore databases create --location=nam5 --type=firestore-native
 ```
+
+**Why Native Mode?**
+-   Required for real-time listeners used in modern web applications.
+-   Offers a more feature-rich and flexible data model compared to Datastore mode.
+-   The choice between Native and Datastore mode **cannot be changed** after it is made.
 
 **Note:** `nam5` is the multi-region for North America. Choose a location that is close to your users. You can only have one Firestore database per project.
 
@@ -630,6 +637,9 @@ gcloud secrets delete billing_account_id
 
 # Delete artifact registry (repository name is 'gke-apps')
 gcloud artifacts repositories delete gke-apps --location=us-central1
+
+# Delete Firestore database (WARNING: Permanent data loss!)
+gcloud firestore databases delete --database='(default)'
 
 # Delete backup bucket (will delete all backups!)
 gsutil rm -r gs://your-backup-bucket-name

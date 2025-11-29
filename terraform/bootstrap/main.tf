@@ -11,6 +11,30 @@ provider "google" {
   project = var.project_id
 }
 
+resource "google_project_service" "kms" {
+  service                    = "cloudkms.googleapis.com"
+  disable_dependent_services = true
+}
+
+resource "google_kms_key_ring" "terraform_state_bucket" {
+  name     = "terraform-state-bucket"
+  location = "global"
+
+  depends_on = [
+    google_project_service.kms
+  ]
+}
+
+resource "google_kms_crypto_key" "terraform_state_bucket" {
+  name            = "terraform-state-bucket-key"
+  key_ring        = google_kms_key_ring.terraform_state_bucket.id
+  rotation_period = "100000s"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_storage_bucket" "tfstate" {
   name          = "${var.project_id}-tfstate"
   location      = "US" # Multi-regional for high availability
@@ -21,7 +45,15 @@ resource "google_storage_bucket" "tfstate" {
     enabled = true
   }
 
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.terraform_state_bucket.id
+  }
+
   lifecycle {
     prevent_destroy = true
   }
+
+  depends_on = [
+    google_kms_crypto_key.terraform_state_bucket
+  ]
 }

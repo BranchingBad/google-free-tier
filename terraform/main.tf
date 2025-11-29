@@ -164,9 +164,9 @@ resource "google_storage_bucket" "assets_bucket" {
   force_destroy               = true # CAUTION: Deletes bucket even if it has files
 
   cors {
-    origin          = ["*"]
-    method          = ["GET", "HEAD", "OPTIONS"]
-    response_header = ["*"]
+    origin          = ["https://${var.domain_name}"]
+    method          = ["GET", "HEAD"]
+    response_header = ["Content-Type"]
     max_age_seconds = 3600
   }
 }

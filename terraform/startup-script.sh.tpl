@@ -49,15 +49,19 @@ chmod +x /tmp/2-host-setup/*.sh
 
 # 3. Run setup scripts
 echo "Running setup scripts..."
-sudo /tmp/2-host-setup/1-create-swap.sh
-sudo /tmp/2-host-setup/2-install-nginx.sh
-sudo -E /tmp/2-host-setup/3-setup-duckdns.sh
-sudo -E /tmp/2-host-setup/4-setup-ssl.sh
-sudo /tmp/2-host-setup/5-adjust-firewall.sh
-sudo -E /tmp/2-host-setup/6-setup-backups.sh
-sudo /tmp/2-host-setup/7-setup-security.sh
-sudo /tmp/2-host-setup/8-setup-ops-agent.sh
+(
+  set -e  # Exit on any error
+  sudo /tmp/2-host-setup/1-create-swap.sh
+  sudo /tmp/2-host-setup/2-install-nginx.sh
+  sudo -E /tmp/2-host-setup/3-setup-duckdns.sh
+  sudo -E /tmp/2-host-setup/4-setup-ssl.sh
+  sudo /tmp/2-host-setup/5-adjust-firewall.sh
+  sudo -E /tmp/2-host-setup/6-setup-backups.sh
+  sudo /tmp/2-host-setup/7-setup-security.sh
+  sudo /tmp/2-host-setup/8-setup-ops-agent.sh
+) && touch /var/lib/google-free-tier-setup-complete || {
+  echo "ERROR: Setup scripts failed. Check /var/log/startup-script.log"
+  exit 1
+}
 
-# 4. Mark setup as complete
-touch /var/lib/google-free-tier-setup-complete
 echo "--- Startup Script Complete ---"

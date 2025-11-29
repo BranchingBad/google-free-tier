@@ -163,22 +163,31 @@ EOF
     log_info "Requesting SSL certificate for ${DOMAIN}..."
     log_info "⏳ This may take a few minutes..."
     
-    # Add a timeout to prevent the script from hanging indefinitely
-    if timeout 300 certbot --nginx \
-        -d "${DOMAIN}" \
-        --non-interactive \
-        --agree-tos \
-        -m "${EMAIL}" \
-        --redirect \
-        --expand; then
-        log_success "🔒 SSL Certificate installed and configured successfully!"
-        log_success "Your site is now available at: https://${DOMAIN}"
-        log_info "Certificate expires in 90 days. Renewal will happen automatically."
-    else
-        log_error "Certbot failed to obtain an SSL certificate."
+    MAX_ATTEMPTS=3
+    for attempt in $(seq 1 $MAX_ATTEMPTS); do
+      log_info "Attempt $attempt of $MAX_ATTEMPTS to obtain certificate..."
+      if timeout 300 certbot --nginx \
+          -d "${DOMAIN}" \
+          --non-interactive \
+          --agree-tos \
+          -m "${EMAIL}" \
+          --redirect \
+          --expand; then
+          log_success "🔒 SSL Certificate installed and configured successfully!"
+          log_success "Your site is now available at: https://${DOMAIN}"
+          log_info "Certificate expires in 90 days. Renewal will happen automatically."
+          break # Success
+      fi
+
+      if [ $attempt -lt $MAX_ATTEMPTS ]; then
+        log_warn "Attempt $attempt failed. Retrying in 30s..."
+        sleep 30
+      else
+        log_error "Certbot failed to obtain an SSL certificate after $MAX_ATTEMPTS attempts."
         log_info "💡 Review errors above and try: sudo certbot --nginx -d ${DOMAIN}"
         exit 1
-    fi
+      fi
+    done
     
     log_info "----------------------------------------------------"
 }

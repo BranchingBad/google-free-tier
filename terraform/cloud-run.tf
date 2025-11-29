@@ -3,8 +3,7 @@ resource "google_project_service" "cloud_run_apis" {
   for_each = var.enable_cloud_run ? toset([
     "run.googleapis.com",
     "artifactregistry.googleapis.com",
-    "domains.googleapis.com",
-    "firestore.googleapis.com" # Added: Enable Firestore API
+    "domains.googleapis.com"
   ]) : []
   service = each.key
 }
@@ -60,7 +59,7 @@ resource "google_cloud_run_v2_service" "default" {
       # Added: Inject URL for static assets bucket
       env {
         name  = "ASSETS_URL"
-        value = "https://storage.googleapis.com/${google_storage_bucket.assets_bucket.name}"
+        value = var.assets_bucket_name != "" ? "https://storage.googleapis.com/${google_storage_bucket.assets_bucket[0].name}" : ""
       }
 
       startup_probe {
@@ -92,7 +91,8 @@ resource "google_cloud_run_v2_service" "default" {
 
   depends_on = [
     google_project_service.cloud_run_apis,
-    google_project_iam_member.ar_reader
+    google_project_iam_member.ar_reader,
+    google_storage_bucket.assets_bucket
   ]
 }
 
@@ -105,7 +105,7 @@ resource "google_cloud_run_service_iam_binding" "default" {
 }
 
 resource "google_cloud_run_domain_mapping" "default" {
-  count    = (var.enable_cloud_run && var.enable_cloud_run_domain_mapping) ? 1 : 0
+  count    = (var.enable_cloud_run && var.enable_cloud_run_domain_mapping && !var.enable_vm) ? 1 : 0
   location = var.region
   name     = var.domain_name
 

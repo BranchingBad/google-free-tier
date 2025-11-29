@@ -27,6 +27,13 @@ create_secret "backup_dir" "Enter the directory to back up (e.g., /var/www/html)
 
 # --- UPDATE START ---
 create_secret "billing_account_id" "Enter your Billing Account ID (e.g., XXXXXX-XXXXXX-XXXXXX)"
+
+# Add validation:
+BILLING_ID=$(gcloud secrets versions access latest --secret="billing_account_id")
+if ! [[ "$BILLING_ID" =~ ^[A-Z0-9]{6}-[A-Z0-9]{6}-[A-Z0-9]{6}$ ]]; then
+  echo "ERROR: Invalid billing account ID format" >&2
+  exit 1
+fi
 # --- UPDATE END ---
 
 # Grant Cloud Build permission to access these secrets
