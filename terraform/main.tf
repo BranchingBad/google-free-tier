@@ -164,7 +164,8 @@ resource "google_compute_instance" "default" {
 
   metadata_startup_script = templatefile("${path.module}/startup-script.sh.tpl", {
     gcs_bucket_name           = google_storage_bucket.backup_bucket[0].name,
-    setup_scripts_tarball_md5 = data.archive_file.setup_scripts_archive.output_md5
+    setup_scripts_tarball_md5 = data.archive_file.setup_scripts_archive.output_md5,
+
   })
 
   service_account {
